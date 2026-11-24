@@ -3,7 +3,7 @@
 <html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= $accionVisible ?> <?= $tipo ?></title><link rel="stylesheet" href="css/style.css?v=20261011-responsive"></head>
 <body class="page-pacientes has-sidebar">
-<?php require dirname(__DIR__) . '/sidebar.php'; ?>
+<?php require dirname(__DIR__) . '/vistas/componentes/sidebar.php'; ?>
 <main class="pacientes-page"><section class="pacientes-form-section">
 <h1><?= $accionVisible ?> <?= $tipo ?></h1>
 <h2><?= htmlspecialchars($ficha['nombres'].' '.$ficha['apellidos']) ?></h2>

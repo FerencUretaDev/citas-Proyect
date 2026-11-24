@@ -1,9 +1,33 @@
-Sistema de Citas Médicas – Actualización de directorios
+SISTEMA DE CITAS MÉDICAS — REFACTORIZACIÓN MVC / DAO / SERVICIOS (FASE 1)
 
-1. Guarda una copia de la carpeta del proyecto y una exportación de la base sistema.
-2. En tu cliente de MySQL, selecciona la base sistema y ejecuta migracion_retiros.sql una sola vez. Los registros existentes quedan activos. No importes database.sql ni los archivos de respaldo de las tablas.
-3. Copia los PHP y las carpetas modelos y vistas de este paquete en C:\xampp\htdocs\Proyecto Citas. Combina las carpetas con las existentes y reemplaza los archivos del mismo nombre. Conserva conexion.php y la configuración de tu equipo.
-4. Entra como administrador. En Pacientes puedes editar o archivar; en Doctores puedes editar o desactivar. Una ficha con citas futuras pendientes o confirmadas mostrará el enlace Gestionar citas. Desde ahí puedes cancelar una cita o reprogramarla con otro doctor activo de la misma especialidad.
-5. Usa Ver archivados en Pacientes o Ver inactivos en Doctores para reactivar una ficha. La baja conserva el historial de citas.
+ANTES DE INSTALAR
+1. Detén Apache si lo deseas y copia la carpeta completa del proyecto (incluidos archivos ocultos) a una ubicación privada FUERA de htdocs. Exporta la base de datos sistema a una ubicación privada. No publiques respaldos ni credenciales.
+2. En CMD: cd /d "C:\xampp\htdocs\Proyecto Citas"
+   git status
+   git switch -c refactor-arquitectura-mvc
+   Si la rama ya existe, usa git switch refactor-arquitectura-mvc. No descartes cambios pendientes; el respaldo del paso 1 es importante porque el ZIP original incluía cambios posteriores al último commit conocido.
+3. Extrae este ZIP en una carpeta temporal. Copia el CONTENIDO de Proyecto Citas (incluyendo .htaccess y .gitignore) a tu carpeta actual del proyecto. Acepta reemplazar los archivos incluidos y combinar las carpetas. No borres la carpeta original ni .git. No sustituyas carpetas privadas de XAMPP. El ZIP es una actualización del código fuente, no un instalador de MySQL ni un clon Git.
+4. Los SQL históricos se incluyen bajo migraciones/. No vuelvas a ejecutarlos si ya fueron aplicados. Esta actualización no cambia el esquema ni los datos de MySQL. Las copias originales de las migraciones de la raíz pueden retirarse después de verificar que coinciden con las nuevas (no es indispensable).
+5. Conserva C:\xampp\private\config\dni.ini, reportes.ini, el JAR privado y la carpeta de reportes. Si cambiaste conexion.php después de preparar el ZIP, traslada tus ajustes locales a config/Conexion.php antes de probar. No incluyas contraseñas reales en Git.
+6. Inicia Apache y MySQL (si corresponde), abre http://localhost/Proyecto%20Citas/index.php y pulsa Ctrl+F5.
 
-Los formularios de registro muestran Nombres, Primer apellido, Segundo apellido y Contraseña, en ese orden. El usuario se genera al guardar.
+PRUEBAS EN TU EQUIPO
+Desde CMD en la carpeta del proyecto:
+"C:\xampp\php\php.exe" pruebas\ReglasTest.php
+Resultado esperado: 14 pruebas superadas.
+
+Con una base de pruebas o datos autorizados:
+- Admin: inicia sesión, lista pacientes y doctores, copia un usuario, crea/edita una ficha, consulta DNI y verifica mensajes. Comprueba archivo/reactivación de una ficha sin citas futuras.
+- Paciente: inicia sesión, prueba calendario, especialidad y horarios. Intenta reservar una segunda cita de la misma especialidad en un día; debe rechazarla. Intenta una especialidad diferente en el mismo horario; debe rechazarla. Verifica que una especialidad distinta en un turno libre y contiguo pueda reservarse.
+- Doctor: inicia sesión y comprueba agenda y cambios de estado autorizados.
+- Administrador: verifica los reportes, reprogramación y exportación Java. Comprueba que las citas existentes permanecen en la BD. Las reglas de nueva reserva no se han extendido aún a todos los flujos de reprogramación.
+- Verifica que las rutas /pacientes, /doctores, /panel, /sacar_cita y /exportar_excel_java.php siguen accesibles según permisos. Solicitar /controladores/ReservaController.php o /database.sql debe dar 403.
+- Cierra sesión y verifica el retorno al login del proyecto, no al dashboard de XAMPP.
+
+CONTROL DE VERSIONES Y DATOS SENSIBLES
+Este ZIP excluye .git, database.sql, sistema_*.sql, .bak, prueba_java.php y target/ de Maven. No borra los originales existentes. El .gitignore y .htaccess ayudan a prevenir exposición futura, pero .gitignore NO deja de rastrear archivos que ya estaban en Git. Después de verificar un respaldo privado, revisa git ls-files y considera retirar los dumps y .bak del índice con git rm --cached --ignore-unmatch -- database.sql sistema_citas.sql sistema_doctores.sql sistema_pacientes.sql sistema_usuarios.sql reporte_citas_respaldo.bak prueba_java.php . Esto conserva los archivos locales. No subas información personal ni tokens. Si una contraseña fue publicada en el pasado, cámbiala; retirar archivos del commit actual no limpia el historial.
+Revisa git status, git diff y git diff --cached antes de cualquier commit. Tras probar todos los flujos, registra cambios en la rama de refactorización. No fusiones a main hasta verificar MySQL y la API.
+
+ALCANCE Y LIMITACIONES
+Separación de 14 puntos de entrada en controladores; 8 vistas HTML principales separadas y la vista de estado de perfil existente; repositorios para usuarios, directorios y nuevas reservas; servicios de autenticación, DNI, usuarios, catálogo, estados, reglas y transacción de reserva; middleware de sesión y configuración. Se mantienen wrappers de funciones antiguas para compatibilidad. Se conservan los CSS, JS y código Java originales del ZIP. Las consultas de algunos controladores (panel, reportes, reprogramación y CRUD de perfiles, entre otras) siguen pendientes de extraer a DAO. No es una migración MVC completa ni una auditoría de seguridad.
+Validación en entorno de prueba: 59 archivos PHP con php -l, 3 JS con node --check, 14 pruebas unitarias sin BD y 12 comprobaciones HTTP con Apache usando archivos ficticios, incluyendo rutas con espacios y bloqueo de acceso interno. No se pudo probar contra MySQL, API Perú, Maven ni XAMPP Windows. El entorno PHP de validación fue 8.4, no 8.5.12.

@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", function () {
+    inicializarCopiaUsuario();
     inicializarMostrarPassword();
     inicializarGraficosPanel();
     inicializarGraficosReporte();
@@ -180,7 +181,9 @@ function inicializarFiltroCitas() {
                 mensaje.classList.toggle("visible", cantidad === 0);
             });
 
-            let texto = "Todas las últimas 12";
+            let texto = document.body.dataset.userRole === "2"
+    ? "Todas las últimas 12"
+    : "Todas las citas";
             if (filtro === "atendida") texto = "Citas atendidas";
             if (filtro === "pendiente") texto = "Citas pendientes";
             if (filtro === "confirmada") texto = "Citas confirmadas";
@@ -359,4 +362,35 @@ function inicializarReserva() {
                 mensajeHorarios.textContent = "Error al consultar los horarios.";
             });
     }
+}
+
+
+// Copia el usuario real mostrado en la ficha, el directorio o el aviso de registro.
+function inicializarCopiaUsuario() {
+    document.querySelectorAll("[data-copiar-usuario]").forEach(function (boton) {
+        let temporizador;
+        boton.addEventListener("click", async function () {
+            const usuario = boton.dataset.copiarUsuario;
+            const estado = boton.parentElement.querySelector(".usuario-copia-estado");
+            if (!usuario) return;
+            window.clearTimeout(temporizador);
+            try {
+                if (!navigator.clipboard || !navigator.clipboard.writeText) {
+                    throw new Error("Portapapeles no disponible");
+                }
+                await navigator.clipboard.writeText(usuario);
+                boton.textContent = "Copiado";
+                if (estado) estado.textContent = "Usuario copiado al portapapeles.";
+            } catch (error) {
+                // Si el navegador bloquea el portapapeles, ofrece una copia manual.
+                boton.textContent = "Copiar";
+                if (estado) estado.textContent = "Copia manual disponible.";
+                window.prompt("Copia el nombre de usuario (Ctrl + C):", usuario);
+            }
+            temporizador = window.setTimeout(function () {
+                boton.textContent = "Copiar";
+                if (estado) estado.textContent = "";
+            }, 2500);
+        });
+    });
 }

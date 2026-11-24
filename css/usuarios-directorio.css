@@ -1,0 +1,68 @@
+/* Componentes de acceso, limitados a los directorios. */
+.usuario-acceso {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+}
+.usuario-acceso .usuario-acceso-valor {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-family: Consolas, ui-monospace, monospace;
+    font-weight: 600;
+    color: #17345c;
+    user-select: text;
+}
+.usuario-acceso button.usuario-copiar {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-height: 32px;
+    padding: 5px 9px;
+    border: 1px solid #cbd9e5;
+    border-radius: 7px;
+    background: #fff;
+    color: #17345c;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.usuario-acceso button.usuario-copiar:hover { background: #edf5fb; }
+.usuario-acceso button.usuario-copiar:focus-visible {
+    outline: 2px solid #1976e8;
+    outline-offset: 2px;
+}
+.usuario-acceso-ficha {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px 12px;
+    margin: 8px 0 14px;
+    background: #f0f6fb;
+    border: 1px solid #d6e1ec;
+    border-radius: 8px;
+    color: #17345c;
+    min-width: 0;
+}
+.usuario-acceso-ficha .usuario-acceso { flex: 1 1 auto; }
+.usuario-sin-cuenta { color: #596b7b; font-size: 12px; }
+.usuario-acceso .usuario-copia-estado {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+/* El listado sigue siendo usable cuando se muestra junto al formulario. */
+body.page-pacientes .pacientes-table-wrap,
+body.page-doctores .doctores-table-wrap { max-width: 100%; overflow-x: auto; }

@@ -1,0 +1,120 @@
+/* Exclusivo de sacar_cita.php. No modifica el resto del sistema. */
+body.page-reserva.reserva-moderna {
+    --r-ink: #17364a; --r-muted: #526c7b; --r-accent: #087f8c;
+    --r-dark: #096773; --r-line: #dce8eb; --r-soft: #edf7f7;
+    margin: 0; padding: 0; min-height: 100vh; color: var(--r-ink);
+    background: radial-gradient(ellipse at 5% 0%, #dcefee 0, transparent 42%), #f3f7fa;
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.reserva-moderna *, .reserva-moderna *::before, .reserva-moderna *::after {box-sizing:border-box;}
+.reserva-moderna [hidden] {display:none !important;}
+.reserva-moderna .reserva-shell {width:min(1240px, 100%); margin:0 auto; padding:22px clamp(12px,3vw,32px) 24px;}
+.reserva-moderna .reserva-top {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:18px;}
+.reserva-moderna .reserva-back {display:inline-flex; align-items:center; gap:8px; min-height:44px; color:var(--r-dark); font-weight:650; text-decoration:none;}
+.reserva-moderna .reserva-back span {font-size:22px;}
+.reserva-moderna .reserva-brand {display:flex; align-items:center; gap:8px; color:var(--r-muted); font-size:13px; font-weight:650;}
+.reserva-moderna .reserva-brand span {display:grid; place-items:center; width:28px; height:28px; border-radius:8px; color:white; background:var(--r-accent); font-size:22px; line-height:1;}
+.reserva-moderna .reserva-hero {display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; padding:23px 26px; margin-bottom:20px; border-radius:20px; background:linear-gradient(120deg,#153f53,#087b81); color:white;}
+.reserva-moderna .reserva-kicker {margin:0 0 6px; color:#bde7e7; font-size:11px; font-weight:750; letter-spacing:.11em;}
+.reserva-moderna .reserva-hero h1 {margin:0; font-size:clamp(25px,3vw,33px); letter-spacing:-.025em; line-height:1.15; color:white;}
+.reserva-moderna .reserva-hero p:not(.reserva-kicker) {margin:8px 0 0; color:#e0f2f3; font-size:14px; max-width:64ch;}
+.reserva-moderna .reserva-persona {min-width:0; max-width:100%; display:grid; gap:3px; padding:11px 15px; border:1px solid #ffffff40; border-radius:12px; background:#ffffff12; overflow-wrap:anywhere;}
+.reserva-moderna .reserva-persona span {color:#d0eeee; font-size:12px;}
+.reserva-moderna .reserva-persona strong {font-size:14px;}
+.reserva-moderna .reserva-pasos {display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.12fr) minmax(0,1fr); gap:16px; align-items:start;}
+.reserva-moderna .reserva-card {min-width:0; padding:18px; border:1px solid var(--r-line); border-radius:18px; background:#fff; box-shadow:0 8px 28px #1a455a0b;}
+.reserva-moderna .reserva-step {display:flex; align-items:flex-start; gap:10px; margin-bottom:20px;}
+.reserva-moderna .reserva-numero {display:grid; flex:0 0 33px; width:33px; height:33px; place-items:center; border-radius:11px; background:var(--r-soft); color:var(--r-dark); font-size:16px; font-weight:750;}
+.reserva-moderna .reserva-step h2,.reserva-moderna .reserva-resumen h2 {margin:0; font-size:17px; line-height:1.3; letter-spacing:-.015em; color:var(--r-ink);}
+.reserva-moderna .reserva-step p {margin:3px 0 0; font-size:12px; line-height:1.4; color:var(--r-muted);}
+.reserva-moderna .reserva-field {display:grid; gap:7px; margin-bottom:16px; min-width:0;}
+.reserva-moderna .reserva-field label,.reserva-moderna .modalidad-selector legend {font-size:13px; color:var(--r-ink); font-weight:700;}
+.reserva-moderna .reserva-field label {display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
+.reserva-moderna .reserva-field label span {font-size:12px; color:var(--r-muted); font-weight:400;}
+.reserva-moderna .reserva-field select,.reserva-moderna .reserva-field textarea,.reserva-moderna .reserva-field input[type=date] {width:100%; min-width:0; min-height:46px; padding:10px 12px; border:1px solid #cddde1; border-radius:10px; color:var(--r-ink); background:#fbfdfd; font:inherit; font-size:14px;}
+.reserva-moderna .reserva-field select:disabled {color:#526c7b;background:#eef3f4; cursor:not-allowed;}
+.reserva-moderna .reserva-field textarea {resize:vertical; min-height:90px;}
+.reserva-moderna .reserva-field textarea::placeholder {color:#687e89;}
+.reserva-moderna .modalidad-selector {margin:0 0 15px; padding:0; border:0; min-width:0;}
+.reserva-moderna .modalidad-selector > p {color:var(--r-muted); font-size:12px; margin:4px 0 9px;}
+.reserva-moderna .modalidad-opciones {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;}
+body.page-reserva.reserva-moderna .modalidad-opcion {min-height:68px; padding:10px 8px; gap:7px; border-radius:12px;}
+.reserva-moderna .modalidad-opcion small {color:var(--r-muted); overflow-wrap:anywhere;}
+.reserva-moderna .modalidad-opcion strong {font-size:12px;}
+.reserva-moderna .info-doctor {margin:0; padding:12px; gap:10px; border:1px solid #d5e8e6; border-radius:12px; background:#f0f8f7;}
+.reserva-moderna .info-doctor div {min-width:0;}
+.reserva-moderna .info-doctor strong {overflow-wrap:anywhere; font-size:12px;}
+.reserva-moderna .info-doctor span {color:var(--r-muted);}
+/* Flatpickr tiene un encabezado de 34px por defecto. Se amplía de forma explícita,
+   sin aplicar estilos de los select del formulario al selector interno de mes. */
+.reserva-moderna .reserva-calendario {min-width:0; width:100%;}
+body.page-reserva.reserva-moderna .flatpickr-calendar.inline {top:0; width:100% !important; min-width:0 !important; max-width:none !important; margin:0; border:1px solid var(--r-line); border-radius:13px; box-shadow:none; overflow:visible; font-size:14px;}
+.reserva-moderna .flatpickr-calendar .flatpickr-months {position:relative; min-height:56px; align-items:center; border-bottom:1px solid #eaf0f2;}
+.reserva-moderna .flatpickr-calendar .flatpickr-months .flatpickr-month {height:56px; min-height:56px; overflow:visible; color:var(--r-ink);}
+.reserva-moderna .flatpickr-calendar .flatpickr-current-month {position:absolute; left:13%; width:74%; height:56px; padding:0; display:flex; align-items:center; justify-content:center; gap:3px; font-size:15px; line-height:1.25;}
+body.page-reserva.reserva-moderna .flatpickr-current-month .flatpickr-monthDropdown-months {width:auto; min-width:0; max-width:65%; height:36px; min-height:0; padding:2px 4px; border:0; border-radius:6px; background:transparent; color:var(--r-ink); font:inherit; font-weight:650;}
+.reserva-moderna .flatpickr-current-month .numInputWrapper {width:5.5ch; min-width:5.5ch; height:36px;}
+body.page-reserva.reserva-moderna .flatpickr-current-month input.cur-year {height:36px; width:100%; padding:0 12px 0 2px; border:0; background:transparent; color:var(--r-ink); font:inherit; line-height:36px;}
+.reserva-moderna .flatpickr-months .flatpickr-prev-month,.reserva-moderna .flatpickr-months .flatpickr-next-month {display:grid; place-items:center; top:6px; width:13%; height:44px; padding:8px; color:var(--r-dark); fill:var(--r-dark); border-radius:8px;}
+.reserva-moderna .flatpickr-months .flatpickr-prev-month.flatpickr-disabled,.reserva-moderna .flatpickr-months .flatpickr-next-month.flatpickr-disabled {display:none;}
+.reserva-moderna .flatpickr-months .flatpickr-prev-month:hover,.reserva-moderna .flatpickr-months .flatpickr-next-month:hover {background:var(--r-soft);}
+.reserva-moderna .flatpickr-calendar .flatpickr-innerContainer,.reserva-moderna .flatpickr-calendar .flatpickr-rContainer,.reserva-moderna .flatpickr-calendar .flatpickr-days,.reserva-moderna .flatpickr-calendar .dayContainer,.reserva-moderna .flatpickr-calendar .flatpickr-weekdays,.reserva-moderna .flatpickr-calendar .flatpickr-weekdaycontainer {width:100% !important; min-width:0 !important; max-width:100% !important; flex:1 1 auto !important;}
+.reserva-moderna .flatpickr-calendar .flatpickr-weekdays {height:32px;}
+.reserva-moderna .flatpickr-calendar span.flatpickr-weekday {font-size:12px; color:var(--r-muted);}
+.reserva-moderna .flatpickr-calendar .dayContainer {padding:0 3px 6px; justify-content:space-around;}
+.reserva-moderna .flatpickr-calendar .flatpickr-day {width:14.285714%; max-width:none !important; flex:0 0 14.285714%; height:42px; line-height:40px; border-radius:10px; color:var(--r-ink); font-weight:550;}
+.reserva-moderna .flatpickr-calendar .flatpickr-day.today {border-color:var(--r-accent);}
+.reserva-moderna .flatpickr-calendar .flatpickr-day:hover:not(.flatpickr-disabled) {background:#e8f5f5; border-color:#b7dcdf;}
+body.page-reserva.reserva-moderna .flatpickr-calendar .flatpickr-day.selected,body.page-reserva.reserva-moderna .flatpickr-calendar .flatpickr-day.selected:hover {background:var(--r-accent); border-color:var(--r-accent); color:white;}
+.reserva-moderna .flatpickr-calendar .flatpickr-day.flatpickr-disabled,.reserva-moderna .flatpickr-calendar .flatpickr-day.prevMonthDay,.reserva-moderna .flatpickr-calendar .flatpickr-day.nextMonthDay {color:#84939b;}
+.reserva-moderna .flatpickr-calendar .flatpickr-day.flatpickr-disabled {color:#9ba8af; text-decoration:line-through; cursor:not-allowed;}
+.reserva-moderna .reserva-leyenda {display:flex; flex-wrap:wrap; gap:12px; color:var(--r-muted); font-size:12px; margin:13px 0 9px;}
+.reserva-moderna .reserva-leyenda span {display:inline-flex; align-items:center; gap:6px;}
+.reserva-moderna .reserva-punto {width:12px; height:12px; border:1px solid var(--r-accent); border-radius:4px;}
+.reserva-moderna .reserva-punto.elegido {background:var(--r-accent);}
+.reserva-moderna .reserva-nota {margin:0; padding:11px; border-radius:10px; background:var(--r-soft); color:var(--r-dark); font-size:13px; font-weight:600;}
+body.page-reserva.reserva-moderna #mensajeHorarios {margin:0 0 12px; padding:12px; background:#f0f6f7; color:#385b6c; border-radius:10px; line-height:1.5; font-size:13px;}
+.reserva-moderna #mensajeHorarios[data-estado=error] {background:#fff1ec; color:#924231;}
+.reserva-moderna .horarios {display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:0 0 16px;}
+body.page-reserva.reserva-moderna .horario {min-height:44px; padding:7px 3px; border-radius:10px; font-variant-numeric:tabular-nums; font-size:14px;}
+.reserva-moderna .reserva-motivo {margin:16px 0 0;}
+.reserva-moderna .reserva-resumen {display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; margin-top:18px; padding:18px 20px; border:1px solid var(--r-line); border-radius:16px; background:#fff; box-shadow:0 8px 28px #1a455a0b;}
+.reserva-moderna .reserva-resumen-datos {flex:1 1 320px; min-width:0;}
+.reserva-moderna .reserva-resumen p {margin:5px 0 0; color:var(--r-muted); font-size:13px; overflow-wrap:anywhere;}
+.reserva-moderna .reserva-botones {display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.reserva-moderna .reserva-confirmar,.reserva-moderna .reserva-cancelar {display:inline-flex; align-items:center; justify-content:center; gap:9px; min-height:48px; padding:0 18px; border:1px solid transparent; border-radius:10px; font:inherit; font-size:14px; font-weight:700; text-decoration:none;}
+.reserva-moderna .reserva-confirmar {background:var(--r-accent); color:#fff; cursor:pointer;}
+.reserva-moderna .reserva-confirmar:hover:not(:disabled) {background:var(--r-dark);}
+.reserva-moderna .reserva-confirmar:disabled {background:#e4ebee; color:#5b707b; cursor:not-allowed;}
+.reserva-moderna .reserva-cancelar {background:white; border-color:#cddde1; color:var(--r-ink);}
+.reserva-moderna .reserva-cancelar:hover {background:#f1f7f8;}
+.reserva-moderna .reserva-aviso {display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; margin:0 0 16px; padding:12px 15px; border-radius:12px; border:1px solid #efd2c8; background:#fff1ec; color:#8a382b;}
+.reserva-moderna .reserva-aviso.success {background:#e9f7ef; border-color:#b7dec7; color:#216544;}
+.reserva-moderna .reserva-aviso a {color:inherit; font-weight:700;}
+.reserva-moderna .reserva-pie {margin:15px 0 0; color:var(--r-muted); text-align:center; font-size:12px;}
+.reserva-moderna :where(button,a,input,select,textarea,.flatpickr-day):focus-visible {outline:3px solid #1597a0; outline-offset:2px;}
+@media(max-width:1050px) {
+    .reserva-moderna .reserva-pasos {grid-template-columns:repeat(2,minmax(0,1fr));}
+    .reserva-moderna .reserva-card-turnos {grid-column:1/-1;}
+    .reserva-moderna .horarios {grid-template-columns:repeat(auto-fit,minmax(90px,1fr));}
+}
+@media(max-width:680px) {
+    .reserva-moderna .reserva-shell {padding:10px 12px calc(20px + env(safe-area-inset-bottom));}
+    .reserva-moderna .reserva-top {margin-bottom:10px;}
+    .reserva-moderna .reserva-brand {font-size:11px;}
+    .reserva-moderna .reserva-hero {padding:19px 16px; border-radius:15px; margin-bottom:13px;}
+    .reserva-moderna .reserva-pasos {grid-template-columns:minmax(0,1fr); gap:12px;}
+    .reserva-moderna .reserva-card {padding:14px; border-radius:14px;}
+    .reserva-moderna .reserva-card-turnos {grid-column:auto;}
+    .reserva-moderna .reserva-step {margin-bottom:16px;}
+    .reserva-moderna .reserva-resumen {padding:15px;}
+    .reserva-moderna .reserva-resumen-datos {flex-basis:100%;}
+    .reserva-moderna .reserva-botones {width:100%; display:grid; grid-template-columns:1fr 1.4fr;}
+    .reserva-moderna .reserva-field select,.reserva-moderna .reserva-field textarea,.reserva-moderna .reserva-field input[type=date] {font-size:16px;}
+    .reserva-moderna .horarios {grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+@media(max-width:350px) {
+    .reserva-moderna .reserva-shell {padding-inline:8px;}
+    .reserva-moderna .reserva-card {padding:11px;}
+    .reserva-moderna .reserva-botones {grid-template-columns:1fr;}
+}

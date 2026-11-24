@@ -1,21 +1,15 @@
-Options -MultiViews
+Options -Indexes -MultiViews
 DirectoryIndex index.php
-
 RewriteEngine On
 
-RewriteRule ^exportar_excel_java\.php$ - [END]
-RewriteRule ^exportar_excel_java/?$ exportar_excel_java.php [END]
+# Bloquear solicitudes HTTP a capas internas, respaldos y archivos sensibles.
+RewriteRule ^(?:controladores|servicios|repositorios|modelos|vistas|middlewares|config|pruebas|migraciones|modulo-reportes)(?:/|$) - [F,END,NC]
+RewriteRule (^|/)\. - [F,END]
+RewriteRule \.(?:sql|bak|ini|log|zip|jar|xlsx|env)(?:/|$) - [F,END,NC]
+RewriteRule ^(?:conexion|generar_usuario|catalogo_especialidades|reglas_citas|reglas_reserva|sesion_activa|sidebar|prueba_java|verificar_curl)(?:\.php)?/?$ - [F,END,NC]
 
-# Excluir archivo temporal de prueba
-RewriteRule ^prueba_java\.php$ - [END]
-
-RewriteCond %{THE_REQUEST} \s/+index\.php(?:[?\s]) [NC]
-RewriteRule ^index\.php$ ./ [R=301,L]
-
-RewriteCond %{THE_REQUEST} \s/+(.+?)\.php(?:[?\s]) [NC]
-RewriteRule ^(.+)\.php$ $1 [R=301,L,NE]
-
+# Mantener rutas existentes con o sin .php, sin redirecciones a rutas físicas.
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.php -f
-RewriteRule ^(.+?)/?$ $1.php [L]
+RewriteRule ^([A-Za-z0-9_]+)$ $1.php [END]

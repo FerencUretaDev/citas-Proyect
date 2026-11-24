@@ -1,0 +1,13 @@
+# Configuración privada, respaldos y compilaciones locales
+.env
+*.ini
+*.bak
+*.log
+*.zip
+*.xlsx
+*.jar
+/database.sql
+/sistema_*.sql
+/prueba_java.php
+/verificar_curl.php
+/modulo-reportes/target/

@@ -1,0 +1,14 @@
+ACTUALIZACIÓN – USUARIOS DE PACIENTES Y DOCTORES
+
+1. Haz una copia de los archivos originales pacientes.php, doctores.php y js/javascript.js fuera de htdocs.
+2. Copia los archivos de este paquete a C:\xampp\htdocs\Proyecto Citas, respetando las carpetas js y css.
+   Reemplaza pacientes.php, doctores.php y js/javascript.js; agrega css/usuarios-directorio.css.
+   No reemplaces las carpetas completas ni borres otros archivos. Este LEEME es solo una guía.
+3. Abre el panel de administrador y recarga con Ctrl+F5.
+4. En Pacientes y Doctores, revisa Usuario, Copiar y Editar. Al registrar una nueva ficha, aparecerá el usuario asignado con opción de copiar.
+5. Inicia sesión con el usuario mostrado y la contraseña elegida al registrarlo. Usa una cuenta de prueba autorizada.
+
+No requiere migración SQL ni cambiar la API DNI, contraseñas, token o configuración de XAMPP.
+Los archivos usan las columnas usuarios.id, usuarios.usuario y usuario_id de pacientes/doctores, presentes en el código original.
+El nombre mostrado se obtiene de MySQL; no se recalcula para cuentas existentes.
+Validación local: sintaxis PHP/JS; no se ha probado con tu MySQL ni con tu CSS original.
