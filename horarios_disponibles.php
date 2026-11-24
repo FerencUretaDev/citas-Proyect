@@ -3,6 +3,8 @@
 session_start();
 
 include "conexion.php";
+require_once __DIR__ . "/sesion_activa.php";
+verificarPerfilActivo($conexion, true);
 
 
 /* =====================================================
@@ -71,7 +73,7 @@ $sqlDoctor = "
         refrigerio_inicio,
         refrigerio_fin
     FROM doctores
-    WHERE id = ?
+    WHERE activo = 1 AND id = ?
 ";
 
 $stmtDoctor = $conexion->prepare($sqlDoctor);
@@ -100,7 +102,7 @@ if ($resultDoctor->num_rows == 0) {
 
 $doctor = $resultDoctor->fetch_assoc();
 
-$stmtPaciente = $conexion->prepare("SELECT id FROM pacientes WHERE usuario_id = ? LIMIT 1");
+$stmtPaciente = $conexion->prepare("SELECT id FROM pacientes WHERE activo = 1 AND usuario_id = ? LIMIT 1");
 $stmtPaciente->bind_param("i", $_SESSION["id"]);
 $stmtPaciente->execute();
 $paciente = $stmtPaciente->get_result()->fetch_assoc();

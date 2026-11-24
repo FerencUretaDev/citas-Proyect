@@ -264,11 +264,15 @@ function inicializarReserva() {
 
     function filtrarDoctores(limpiarSeleccion) {
         const especialidad = especialidadSelect.value;
-        doctorSelect.disabled = especialidad === "";
+        const hayDoctores = opcionesDoctor.some(opcion => opcion.dataset.especialidad === especialidad);
+        doctorSelect.disabled = !hayDoctores;
+        doctorSelect.options[0].textContent = !especialidad ? "Selecciona primero una especialidad"
+            : hayDoctores ? "Selecciona un doctor" : "Sin doctores activos";
 
         opcionesDoctor.forEach(function (opcion) {
             const coincide = especialidad !== "" && opcion.dataset.especialidad === especialidad;
             opcion.hidden = !coincide;
+            opcion.disabled = !coincide;
 
             if (!coincide && opcion.selected) {
                 doctorSelect.value = "";
@@ -286,9 +290,11 @@ function inicializarReserva() {
         filtrarDoctores(true);
     });
 
+    let ultimaConsulta = 0;
     filtrarDoctores(false);
 
     function cargarHorarios() {
+        const consulta = ++ultimaConsulta;
         const doctorId = doctorSelect.value;
         const fecha = fechaInput.value;
 
@@ -297,7 +303,9 @@ function inicializarReserva() {
         btnGuardar.disabled = true;
 
         if (doctorId === "" || fecha === "") {
-            mensajeHorarios.textContent = "Selecciona primero un doctor y una fecha.";
+            mensajeHorarios.textContent = especialidadSelect.value && doctorSelect.disabled
+                ? "No hay doctores activos en esta especialidad. Selecciona otra."
+                : "Selecciona primero un doctor y una fecha.";
             return;
         }
 
@@ -306,6 +314,7 @@ function inicializarReserva() {
         fetch("horarios_disponibles?doctor_id=" + encodeURIComponent(doctorId) + "&fecha=" + encodeURIComponent(fecha))
             .then(function (response) { return response.json(); })
             .then(function (data) {
+                if (consulta !== ultimaConsulta) return;
                 listaHorarios.innerHTML = "";
 
                 if (data.error) {
@@ -345,6 +354,7 @@ function inicializarReserva() {
                 });
             })
             .catch(function (error) {
+                if (consulta !== ultimaConsulta) return;
                 console.error(error);
                 mensajeHorarios.textContent = "Error al consultar los horarios.";
             });

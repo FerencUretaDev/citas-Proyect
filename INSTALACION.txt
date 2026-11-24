@@ -1,0 +1,9 @@
+Sistema de Citas Médicas – Actualización de directorios
+
+1. Guarda una copia de la carpeta del proyecto y una exportación de la base sistema.
+2. En tu cliente de MySQL, selecciona la base sistema y ejecuta migracion_retiros.sql una sola vez. Los registros existentes quedan activos. No importes database.sql ni los archivos de respaldo de las tablas.
+3. Copia los PHP y las carpetas modelos y vistas de este paquete en C:\xampp\htdocs\Proyecto Citas. Combina las carpetas con las existentes y reemplaza los archivos del mismo nombre. Conserva conexion.php y la configuración de tu equipo.
+4. Entra como administrador. En Pacientes puedes editar o archivar; en Doctores puedes editar o desactivar. Una ficha con citas futuras pendientes o confirmadas mostrará el enlace Gestionar citas. Desde ahí puedes cancelar una cita o reprogramarla con otro doctor activo de la misma especialidad.
+5. Usa Ver archivados en Pacientes o Ver inactivos en Doctores para reactivar una ficha. La baja conserva el historial de citas.
+
+Los formularios de registro muestran Nombres, Primer apellido, Segundo apellido y Contraseña, en ese orden. El usuario se genera al guardar.

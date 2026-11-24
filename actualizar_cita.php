@@ -2,6 +2,8 @@
 
 session_start();
 include "conexion.php";
+require_once __DIR__ . "/sesion_activa.php";
+verificarPerfilActivo($conexion);
 require_once "reglas_citas.php";
 
 if (!isset($_SESSION["id"]) || !isset($_SESSION["rol"]) || !in_array((int)$_SESSION["rol"], [1, 2], true)) {

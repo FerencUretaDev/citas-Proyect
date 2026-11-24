@@ -31,16 +31,27 @@ $sqlCitas = "
     INNER JOIN doctores d ON d.id = c.doctor_id
 ";
 
+$tipoFicha = $_GET['tipo'] ?? '';
+$idFicha = filter_var($_GET['id'] ?? 0, FILTER_VALIDATE_INT);
+$filtrarFicha = $idFicha > 0 && in_array($tipoFicha, ['paciente', 'doctor'], true);
+$condiciones = [];
+$parametros = [];
+if ($filtrarFicha) {
+    $columna = $tipoFicha === 'paciente' ? 'c.paciente_id' : 'c.doctor_id';
+    $condiciones[] = "$columna = ? AND TIMESTAMP(c.fecha,c.hora) >= ? AND c.estado IN ('pendiente','confirmada')";
+    $parametros[] = $idFicha;
+    $parametros[] = (new DateTimeImmutable('now', new DateTimeZone('America/Lima')))->format('Y-m-d H:i:s');
+}
 if ($estadoSeleccionado !== "") {
-    $sqlCitas .= " WHERE c.estado = ?";
+    $condiciones[] = 'c.estado = ?';
+    $parametros[] = $estadoSeleccionado;
+}
+if ($condiciones) {
+    $sqlCitas .= ' WHERE ' . implode(' AND ', $condiciones);
 }
 $sqlCitas .= " ORDER BY c.fecha DESC, c.hora DESC, c.id DESC";
-
 $stmtCitas = $conexion->prepare($sqlCitas);
-if ($estadoSeleccionado !== "") {
-    $stmtCitas->bind_param("s", $estadoSeleccionado);
-}
-$stmtCitas->execute();
+$stmtCitas->execute($parametros);
 $resultadoCitas = $stmtCitas->get_result();
 $totalVisible = $resultadoCitas->num_rows;
 ?>
@@ -69,7 +80,14 @@ $totalVisible = $resultadoCitas->num_rows;
 
     <div class="filtros">
         <h2>Filtrar citas</h2>
+        <?php if ($filtrarFicha): ?>
+            <p>Citas futuras de la ficha seleccionada. <a href="estado_perfil?tipo=<?= $tipoFicha ?>&amp;id=<?= $idFicha ?>">Volver a la ficha</a></p>
+        <?php endif; ?>
         <form method="GET" action="citas_admin">
+            <?php if ($filtrarFicha): ?>
+                <input type="hidden" name="tipo" value="<?= $tipoFicha ?>">
+                <input type="hidden" name="id" value="<?= $idFicha ?>">
+            <?php endif; ?>
             <div class="campo">
                 <label for="estadoCitas">Estado</label>
                 <select id="estadoCitas" name="estado">

@@ -116,6 +116,14 @@ if (!in_array($cita["estado"], ["pendiente", "confirmada"], true)) {
     exit("Solo se pueden reprogramar citas pendientes o confirmadas.");
 }
 
+$stmtOpciones = $conexion->prepare("SELECT id, nombres, apellidos, hora_inicio, hora_fin, refrigerio_inicio, refrigerio_fin
+    FROM doctores WHERE activo=1 AND especialidad=? ORDER BY apellidos, nombres");
+$stmtOpciones->bind_param("s", $cita["especialidad"]);
+$stmtOpciones->execute();
+$opciones = array_column($stmtOpciones->get_result()->fetch_all(MYSQLI_ASSOC), null, "id");
+$doctorId = filter_var($_POST["doctor_id"] ?? $_GET["doctor_id"] ?? $cita["doctor_id"], FILTER_VALIDATE_INT);
+$doctorElegido = $opciones[$doctorId] ?? null;
+
 $fechaConsulta = max(date("Y-m-d"), $cita["fecha"]);
 $fechaSolicitada = $_SERVER["REQUEST_METHOD"] === "POST"
     ? ($_POST["fecha"] ?? "")
@@ -147,24 +155,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         ($erroresHora === false || ($erroresHora["warning_count"] === 0 && $erroresHora["error_count"] === 0)) &&
         $horaValidada->format("H:i:s") === $hora;
 
-    if (!$fechaValida || !$horaValida) {
+    if (!$doctorElegido || !$fechaValida || !$horaValida) {
         $mensaje = "Selecciona una fecha y un horario válidos.";
     } else {
         try {
             $conexion->begin_transaction();
 
-            $doctorId = (int)$cita["doctor_id"];
             $pacienteId = (int)$cita["paciente_id"];
 
-            $stmtDoctor = $conexion->prepare("SELECT hora_inicio, hora_fin, refrigerio_inicio, refrigerio_fin FROM doctores WHERE id = ? FOR UPDATE");
-            $stmtDoctor->bind_param("i", $doctorId);
+            $stmtDoctor = $conexion->prepare("SELECT hora_inicio, hora_fin, refrigerio_inicio, refrigerio_fin FROM doctores WHERE activo = 1 AND id = ? AND especialidad = ? FOR UPDATE");
+            $stmtDoctor->bind_param("is", $doctorId, $cita["especialidad"]);
             $stmtDoctor->execute();
             $resultadoDoctor = $stmtDoctor->get_result();
             $doctorBloqueado = $resultadoDoctor->fetch_assoc();
             $resultadoDoctor->free();
             $stmtDoctor->close();
 
-            $stmtPaciente = $conexion->prepare("SELECT id FROM pacientes WHERE id = ? FOR UPDATE");
+            $stmtPaciente = $conexion->prepare("SELECT id FROM pacientes WHERE activo = 1 AND id = ? FOR UPDATE");
             $stmtPaciente->bind_param("i", $pacienteId);
             $stmtPaciente->execute();
             $resultadoPaciente = $stmtPaciente->get_result();
@@ -184,7 +191,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 !$doctorBloqueado ||
                 !$pacienteBloqueado ||
                 !$citaBloqueada ||
-                (int)$citaBloqueada["doctor_id"] !== $doctorId ||
+                (int)$citaBloqueada["doctor_id"] !== (int)$cita["doctor_id"] ||
                 (int)$citaBloqueada["paciente_id"] !== $pacienteId ||
                 !in_array($citaBloqueada["estado"], ["pendiente", "confirmada"], true)
             ) {
@@ -192,19 +199,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
 
             $horariosDisponibles = obtenerHorariosReprogramacion($conexion, $citaId, $doctorId, $pacienteId, $fechaConsulta, $doctorBloqueado);
-            if ($fechaConsulta === $cita["fecha"] && $hora === $cita["hora"]) {
+            if ($doctorId === (int)$cita["doctor_id"] && $fechaConsulta === $cita["fecha"] && $hora === $cita["hora"]) {
                 throw new RuntimeException("Selecciona una fecha u horario distinto al actual.");
             }
             if (!in_array($hora, $horariosDisponibles, true)) {
                 throw new RuntimeException("Ese horario ya no está disponible. Selecciona otro.");
             }
 
-            $stmtActualizar = $conexion->prepare("UPDATE citas SET fecha = ?, hora = ? WHERE id = ? AND estado IN ('pendiente', 'confirmada')");
-            $stmtActualizar->bind_param("ssi", $fechaConsulta, $hora, $citaId);
+            $stmtActualizar = $conexion->prepare("UPDATE citas SET doctor_id = ?, fecha = ?, hora = ? WHERE id = ? AND estado IN ('pendiente', 'confirmada')");
+            $stmtActualizar->bind_param("issi", $doctorId, $fechaConsulta, $hora, $citaId);
             $stmtActualizar->execute();
             $stmtActualizar->close();
             $conexion->commit();
 
+            $cita["doctor_nombres"] = $doctorElegido["nombres"];
+            $cita["doctor_apellidos"] = $doctorElegido["apellidos"];
             $cita["fecha"] = $fechaConsulta;
             $cita["hora"] = $hora;
             $horaSeleccionada = $hora;
@@ -223,14 +232,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 }
 
-if ($fechaValida && !$reprogramada && !$horariosDisponibles) {
+if ($doctorElegido && $fechaValida && !$reprogramada && !$horariosDisponibles) {
     $horariosDisponibles = obtenerHorariosReprogramacion(
         $conexion,
         $citaId,
-        (int)$cita["doctor_id"],
+        $doctorId,
         (int)$cita["paciente_id"],
         $fechaConsulta,
-        $cita
+        $doctorElegido
     );
 }
 ?>
@@ -250,7 +259,7 @@ if ($fechaValida && !$reprogramada && !$horariosDisponibles) {
             <div>
                 <p class="modal-eyebrow">ADMINISTRACIÓN / AGENDA</p>
                 <h1 id="tituloReprogramar">Reprogramar cita</h1>
-                <p class="modal-subtitulo">Selecciona una nueva fecha y un horario libre para el mismo doctor.</p>
+                <p class="modal-subtitulo">Consulta un turno disponible con el doctor actual u otro de la misma especialidad.</p>
             </div>
             <a class="modal-cerrar" href="<?php echo htmlspecialchars($destinoRetorno, ENT_QUOTES, "UTF-8"); ?>" aria-label="Cerrar y volver">&times;</a>
             <div class="modal-paciente">
@@ -278,6 +287,12 @@ if ($fechaValida && !$reprogramada && !$horariosDisponibles) {
                 <form method="GET" action="reprogramar_cita" class="campo reprogramar-fecha-form">
                     <input type="hidden" name="id" value="<?php echo $citaId; ?>">
                     <input type="hidden" name="origen" value="<?php echo htmlspecialchars($origen, ENT_QUOTES, "UTF-8"); ?>">
+                    <label for="doctorDestino">Doctor para esta cita</label>
+                    <select id="doctorDestino" name="doctor_id" required>
+                        <?php foreach ($opciones as $opcion): ?>
+                            <option value="<?= (int)$opcion['id'] ?>" <?= (int)$opcion['id'] === $doctorId ? 'selected' : '' ?>><?= htmlspecialchars($opcion['nombres'].' '.$opcion['apellidos']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                     <label for="fechaReprogramacion">Nueva fecha</label>
                     <div class="reprogramar-fecha-controles">
                         <input type="date" id="fechaReprogramacion" name="fecha" min="<?php echo date("Y-m-d"); ?>" value="<?php echo htmlspecialchars($fechaConsulta, ENT_QUOTES, "UTF-8"); ?>" required>
@@ -287,11 +302,12 @@ if ($fechaValida && !$reprogramada && !$horariosDisponibles) {
 
                 <form method="POST" action="reprogramar_cita?id=<?php echo $citaId; ?>&origen=<?php echo htmlspecialchars($origen, ENT_QUOTES, "UTF-8"); ?>" class="reprogramar-confirmar-form">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION["csrf_token"], ENT_QUOTES, "UTF-8"); ?>">
+                    <input type="hidden" name="doctor_id" value="<?= (int)$doctorId ?>">
                     <input type="hidden" name="cita_id" value="<?php echo $citaId; ?>">
                     <input type="hidden" name="origen" value="<?php echo htmlspecialchars($origen, ENT_QUOTES, "UTF-8"); ?>">
                     <input type="hidden" name="fecha" value="<?php echo htmlspecialchars($fechaConsulta, ENT_QUOTES, "UTF-8"); ?>">
                     <div class="campo">
-                        <label for="horaReprogramacion">Horarios disponibles</label>
+                        <label for="horaReprogramacion">Horarios disponibles<?= $doctorElegido ? ' con '.htmlspecialchars($doctorElegido['nombres'].' '.$doctorElegido['apellidos']) : '' ?></label>
                         <select id="horaReprogramacion" name="hora" required <?php echo !$horariosDisponibles ? "disabled" : ""; ?>>
                             <option value="">Selecciona un horario</option>
                             <?php foreach ($horariosDisponibles as $horario): ?>

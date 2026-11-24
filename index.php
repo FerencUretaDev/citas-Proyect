@@ -11,7 +11,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     $sql = "SELECT id, usuario, password, rol
             FROM usuarios
-            WHERE usuario = ?";
+            WHERE usuario = ? AND (
+                rol = 2 OR (rol = 0 AND EXISTS (SELECT 1 FROM pacientes p WHERE p.usuario_id=usuarios.id AND p.activo=1))
+                OR (rol = 1 AND EXISTS (SELECT 1 FROM doctores d WHERE d.usuario_id=usuarios.id AND d.activo=1)))";
 
     $stmt = $conexion->prepare($sql);
     $stmt->bind_param("s", $usuario);

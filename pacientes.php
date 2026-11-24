@@ -1,6 +1,7 @@
 <?php
 session_start();
 include "conexion.php";
+require_once __DIR__ . "/generar_usuario.php";
 
 if (!isset($_SESSION["id"]) || !isset($_SESSION["rol"]) || (int)$_SESSION["rol"] !== 2) {
     header("Location: /");
@@ -13,9 +14,13 @@ if (empty($_SESSION["csrf_token"])) {
 $rol = 2;
 $paginaActiva = "pacientes";
 
+$verInactivos = ($_GET["vista"] ?? "") === "inactivos";
+$estadoListado = $verInactivos ? 0 : 1;
 $mensaje = "";
 $tipoMensaje = "error";
 $pacienteId = (int)($_GET["editar"] ?? 0);
+$estaCreando = $pacienteId === 0 && isset($_GET["nuevo"]);
+$primerApellido = $segundoApellido = "";
 $formulario = [
     "nombres" => "",
     "apellidos" => "",
@@ -34,7 +39,7 @@ if (isset($_SESSION["mensaje_paciente"])) {
 }
 
 if ($pacienteId > 0) {
-    $stmtEditar = $conexion->prepare("SELECT nombres, apellidos, dni, fecha_nacimiento, sexo, telefono, direccion, correo FROM pacientes WHERE id = ?");
+    $stmtEditar = $conexion->prepare("SELECT nombres, apellidos, dni, fecha_nacimiento, sexo, telefono, direccion, correo FROM pacientes WHERE activo=1 AND id = ?");
     $stmtEditar->bind_param("i", $pacienteId);
     $stmtEditar->execute();
     $pacienteEditar = $stmtEditar->get_result()->fetch_assoc();
@@ -53,9 +58,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit("Solicitud no válida.");
     }
 
-    $pacienteId = (int)($_POST["paciente_id"] ?? 0);
+    $estaCreando = ($_POST["accion"] ?? "editar") === "crear";
+    $pacienteId = filter_var($_POST["paciente_id"] ?? null, FILTER_VALIDATE_INT);
+    if ($pacienteId === false || ($estaCreando ? $pacienteId !== 0 : $pacienteId <= 0)) {
+        http_response_code(400);
+        exit("Ficha de paciente no válida.");
+    }
+    $password = $_POST["password"] ?? "";
     foreach ($formulario as $campo => $valor) {
-        $formulario[$campo] = trim($_POST[$campo] ?? "");
+        $entrada = $_POST[$campo] ?? "";
+        $entrada = is_string($entrada) ? $entrada : "";
+        $formulario[$campo] = $campo === "dni" ? $entrada : trim($entrada);
+    }
+
+    if ($estaCreando) {
+        $primerApellido = trim(is_string($_POST["primer_apellido"] ?? null) ? $_POST["primer_apellido"] : "");
+        $segundoApellido = trim(is_string($_POST["segundo_apellido"] ?? null) ? $_POST["segundo_apellido"] : "");
+        $formulario["apellidos"] = trim($primerApellido . " " . $segundoApellido);
+        $base = baseUsuario($formulario["nombres"], $primerApellido, $segundoApellido, 0);
     }
 
     $fechaNacimiento = $formulario["fecha_nacimiento"];
@@ -71,14 +91,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $sexoValido = in_array($formulario["sexo"], ["", "M", "F", "X"], true);
     $correoValido = $formulario["correo"] === "" || filter_var($formulario["correo"], FILTER_VALIDATE_EMAIL);
-    $datosValidos = $pacienteId > 0 && $formulario["nombres"] !== "" &&
-        $formulario["apellidos"] !== "" && $formulario["dni"] !== "" &&
-        strlen($formulario["dni"]) <= 20 && strlen($formulario["direccion"]) <= 200 &&
+    $datosValidos = $formulario["nombres"] !== "" &&
+        $formulario["apellidos"] !== "" &&
+        strlen($formulario["direccion"]) <= 200 &&
         strlen($formulario["telefono"]) <= 20 && strlen($formulario["correo"]) <= 100 &&
         $fechaValida && $sexoValido && $correoValido;
 
-    if (!$datosValidos) {
+    if (!preg_match('/\A[0-9]{8}\z/', $formulario["dni"])) {
+        $mensaje = "El DNI debe contener exactamente 8 dígitos, sin espacios ni letras.";
+        $tipoMensaje = "error";
+    } elseif ($estaCreando && ($base === "" || preg_match('/^.{1,100}$/usD', $formulario["apellidos"]) !== 1)) {
+        $mensaje = "Revisa los nombres y apellidos. Los apellidos juntos admiten hasta 100 caracteres.";
+    } elseif (!$datosValidos) {
         $mensaje = "Revisa los campos obligatorios, el formato de correo y la fecha de nacimiento.";
+    } elseif ($estaCreando && (!is_string($password) || strlen($password) < 10 || strlen($password) > 72 || str_contains($password, "\0"))) {
+        $mensaje = "La contraseña debe tener entre 10 y 72 bytes.";
     } else {
         try {
             $nombres = $formulario["nombres"];
@@ -90,19 +117,36 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $direccion = $formulario["direccion"] !== "" ? $formulario["direccion"] : null;
             $correo = $formulario["correo"] !== "" ? $formulario["correo"] : null;
 
-            $stmtActualizar = $conexion->prepare("UPDATE pacientes SET nombres = ?, apellidos = ?, dni = ?, fecha_nacimiento = ?, sexo = ?, telefono = ?, direccion = ?, correo = ? WHERE id = ?");
-            $stmtActualizar->bind_param("ssssssssi", $nombres, $apellidos, $dni, $fechaNacimientoDb, $sexo, $telefono, $direccion, $correo, $pacienteId);
-            $stmtActualizar->execute();
-            $stmtActualizar->close();
+            if ($estaCreando) {
+                $hash = password_hash($password, PASSWORD_DEFAULT);
+                $conexion->begin_transaction();
+                [$usuarioId, $usuario] = crearCuentaConUsuario($conexion, $base, $hash, 0);
 
-            $_SESSION["mensaje_paciente"] = "Datos del paciente actualizados correctamente.";
+                $stmt = $conexion->prepare("INSERT INTO pacientes (usuario_id, nombres, apellidos, dni, fecha_nacimiento, sexo, telefono, direccion, correo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("issssssss", $usuarioId, $nombres, $apellidos, $dni, $fechaNacimientoDb, $sexo, $telefono, $direccion, $correo);
+            } else {
+                $stmt = $conexion->prepare("UPDATE pacientes SET nombres = ?, apellidos = ?, dni = ?, fecha_nacimiento = ?, sexo = ?, telefono = ?, direccion = ?, correo = ? WHERE activo=1 AND id = ?");
+                $stmt->bind_param("ssssssssi", $nombres, $apellidos, $dni, $fechaNacimientoDb, $sexo, $telefono, $direccion, $correo, $pacienteId);
+            }
+            $stmt->execute();
+            $stmt->close();
+            if ($estaCreando) {
+                $conexion->commit();
+            }
+            $_SESSION["mensaje_paciente"] = $estaCreando
+                ? "Paciente registrado. Usuario asignado: $usuario"
+                : "Datos del paciente actualizados correctamente.";
             header("Location: pacientes");
             exit;
         } catch (mysqli_sql_exception $error) {
-            error_log("Error al actualizar paciente: " . $error->getMessage());
+            if ($estaCreando) {
+                $conexion->rollback();
+            }
+            $tipoMensaje = "error";
+            error_log("Error al guardar paciente. Código MySQL: " . $error->getCode());
             $mensaje = $error->getCode() === 1062
                 ? "Ese DNI ya está asociado a otro paciente."
-                : "No se pudieron actualizar los datos. Inténtalo de nuevo.";
+                : "No se pudieron guardar los datos. Inténtalo de nuevo.";
         }
     }
 }
@@ -111,6 +155,7 @@ $pacientes = [];
 $sqlPacientes = "
     SELECT p.id, p.nombres, p.apellidos, p.dni, p.telefono, p.correo, p.fecha_registro
     FROM pacientes p
+    WHERE p.activo = $estadoListado
     ORDER BY p.apellidos, p.nombres
 ";
 $resultadoPacientes = $conexion->query($sqlPacientes);
@@ -134,7 +179,7 @@ $estaEditando = $pacienteId > 0;
         <div>
             <p class="pacientes-eyebrow">ADMINISTRACIÓN / PACIENTES</p>
             <h1>Directorio de pacientes</h1>
-            <p>Consulta los registros y actualiza sus datos personales o de contacto.</p>
+            <p>Registra pacientes y actualiza sus datos personales o de contacto.</p>
         </div>
         <a class="pacientes-back" href="panel">Volver al panel</a>
     </header>
@@ -145,31 +190,52 @@ $estaEditando = $pacienteId > 0;
         </div>
     <?php endif; ?>
 
-    <section class="pacientes-layout <?php echo $estaEditando || $_SERVER["REQUEST_METHOD"] === "POST" ? "is-editing" : ""; ?>">
-        <?php if ($estaEditando || $_SERVER["REQUEST_METHOD"] === "POST"): ?>
-            <section class="pacientes-form-section" aria-labelledby="tituloEditarPaciente">
+    <section class="pacientes-layout <?php echo $estaEditando || $estaCreando ? "is-editing" : ""; ?>">
+        <?php if ($estaEditando || $estaCreando): ?>
+            <section class="pacientes-form-section" aria-labelledby="tituloFichaPaciente">
                 <div class="pacientes-section-heading">
                     <div>
                         <p class="pacientes-eyebrow">FICHA DEL PACIENTE</p>
-                        <h2 id="tituloEditarPaciente">Editar datos</h2>
+                        <h2 id="tituloFichaPaciente"><?php echo $estaCreando ? "Agregar paciente" : "Editar datos"; ?></h2>
                     </div>
                     <a class="pacientes-cancel" href="pacientes">Cancelar</a>
                 </div>
 
                 <form method="POST" action="pacientes" class="paciente-form">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION["csrf_token"], ENT_QUOTES, "UTF-8"); ?>">
+                    <input type="hidden" name="accion" value="<?php echo $estaCreando ? "crear" : "editar"; ?>">
                     <input type="hidden" name="paciente_id" value="<?php echo $pacienteId; ?>">
 
                     <div class="paciente-form-grid">
+                        <label>DNI <span>8 dígitos</span>
+                            <input type="text" name="dni" inputmode="numeric" minlength="8" maxlength="8"
+                                   pattern="[0-9]{8}" title="Ingresa exactamente 8 dígitos."
+                                   oninput="this.value = this.value.replace(/[^0-9]/g, '')" required value="<?php echo htmlspecialchars($formulario["dni"], ENT_QUOTES, "UTF-8"); ?>">
+                        </label>
+                        <?php if ($estaCreando): ?>
+                            <div>
+                                <button type="button" class="pacientes-edit" id="consultar-dni">Consultar DNI</button>
+                                <small id="resultado-dni" role="status"></small>
+                            </div>
+                        <?php endif; ?>
                         <label>Nombres
                             <input name="nombres" maxlength="100" required value="<?php echo htmlspecialchars($formulario["nombres"], ENT_QUOTES, "UTF-8"); ?>">
                         </label>
+                        <?php if ($estaCreando): ?>
+                            <label>Primer apellido
+                                <input name="primer_apellido" maxlength="100" required value="<?php echo htmlspecialchars($primerApellido, ENT_QUOTES, "UTF-8"); ?>">
+                            </label>
+                            <label>Segundo apellido <span>Opcional</span>
+                                <input name="segundo_apellido" maxlength="100" value="<?php echo htmlspecialchars($segundoApellido, ENT_QUOTES, "UTF-8"); ?>">
+                            </label>
+                            <label>Contraseña
+                                <input type="password" name="password" minlength="10" maxlength="72" autocomplete="new-password" required>
+                            </label>
+                        <?php else: ?>
                         <label>Apellidos
                             <input name="apellidos" maxlength="100" required value="<?php echo htmlspecialchars($formulario["apellidos"], ENT_QUOTES, "UTF-8"); ?>">
                         </label>
-                        <label>DNI
-                            <input name="dni" maxlength="20" required value="<?php echo htmlspecialchars($formulario["dni"], ENT_QUOTES, "UTF-8"); ?>">
-                        </label>
+                        <?php endif; ?>
                         <label>Fecha de nacimiento <span>Opcional</span>
                             <input type="date" name="fecha_nacimiento" max="<?php echo date("Y-m-d"); ?>" value="<?php echo htmlspecialchars($formulario["fecha_nacimiento"] ?? "", ENT_QUOTES, "UTF-8"); ?>">
                         </label>
@@ -193,8 +259,10 @@ $estaEditando = $pacienteId > 0;
                     </div>
 
                     <div class="paciente-form-footer">
-                        <p>El nombre de usuario y la contraseña no se modifican desde esta ficha.</p>
-                        <button type="submit">Guardar cambios</button>
+                        <?php if ($estaEditando): ?>
+                            <p>El nombre de usuario y la contraseña no se modifican desde esta ficha.</p>
+                        <?php endif; ?>
+                        <button type="submit"><?php echo $estaCreando ? "Registrar paciente" : "Guardar cambios"; ?></button>
                     </div>
                 </form>
             </section>
@@ -204,15 +272,19 @@ $estaEditando = $pacienteId > 0;
             <div class="pacientes-section-heading">
                 <div>
                     <p class="pacientes-eyebrow">REGISTROS</p>
-                    <h2 id="tituloListaPacientes">Pacientes registrados</h2>
+                    <h2 id="tituloListaPacientes"><?= $verInactivos ? "Pacientes archivados" : "Pacientes registrados" ?></h2>
                 </div>
+                <?php if (!$estaCreando): ?>
+                    <a class="pacientes-edit" href="pacientes?nuevo=1">Agregar paciente</a>
+                <?php endif; ?>
                 <span class="pacientes-count"><?php echo count($pacientes); ?> pacientes</span>
             </div>
 
+            <p><a href="pacientes<?= $verInactivos ? '' : '?vista=inactivos' ?>"><?= $verInactivos ? 'Ver activos' : 'Ver archivados' ?></a></p>
             <div class="pacientes-table-wrap">
                 <table class="pacientes-table">
                     <thead>
-                        <tr><th>Paciente</th><th>DNI</th><th>Contacto</th><th>Registro</th><th>Acción</th></tr>
+                        <tr><th>Paciente</th><th>DNI</th><th>Contacto</th><th>Registro</th><th>Acciones</th></tr>
                     </thead>
                     <tbody>
                         <?php foreach ($pacientes as $paciente): ?>
@@ -224,11 +296,14 @@ $estaEditando = $pacienteId > 0;
                                     <small><?php echo htmlspecialchars($paciente["correo"] ?: "Sin correo", ENT_QUOTES, "UTF-8"); ?></small>
                                 </td>
                                 <td data-label="Registro"><?php echo htmlspecialchars(date("d/m/Y", strtotime($paciente["fecha_registro"])), ENT_QUOTES, "UTF-8"); ?></td>
-                                <td data-label="Acción"><a class="pacientes-edit" href="pacientes?editar=<?php echo (int)$paciente["id"]; ?>">Editar</a></td>
+                                <td data-label="Acciones">
+                                    <?php if (!$verInactivos): ?><a class="pacientes-edit" href="pacientes?editar=<?= (int)$paciente['id'] ?>">Editar</a><?php endif; ?>
+                                    <a class="pacientes-edit" href="estado_perfil?tipo=paciente&amp;id=<?= (int)$paciente['id'] ?>"><?= $verInactivos ? 'Reactivar' : 'Archivar' ?></a>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if (!$pacientes): ?>
-                            <tr><td colspan="5" class="pacientes-empty">Todavía no hay pacientes registrados.</td></tr>
+                            <tr><td colspan="5" class="pacientes-empty">No hay pacientes en esta lista.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
@@ -237,5 +312,6 @@ $estaEditando = $pacienteId > 0;
     </section>
 </main>
 <script src="js/javascript.js" defer></script>
+<script src="js/consulta_dni.js" defer></script>
 </body>
 </html>

@@ -16,8 +16,7 @@ $config = parse_ini_file(
 
 if ($config === false ||
     empty($config["DB_USER"]) ||
-    !isset($config["DB_PASSWORD"]) ||
-    $config["DB_PASSWORD"] === "") {
+    !isset($config["DB_PASSWORD"])) {
     http_response_code(500);
     exit("Error de configuración del reporte.");
 }

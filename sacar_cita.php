@@ -1,6 +1,8 @@
 <?php
 session_start();
 include "conexion.php";
+require_once __DIR__ . "/sesion_activa.php";
+verificarPerfilActivo($conexion);
 
 /* =====================================================
    SEGURIDAD
@@ -28,7 +30,7 @@ $doctorSeleccionado = 0;
 $sqlPaciente = "
     SELECT id, nombres, apellidos, dni
     FROM pacientes
-    WHERE usuario_id = ?
+    WHERE activo = 1 AND usuario_id = ?
 ";
 
 $stmtPaciente = $conexion->prepare($sqlPaciente);
@@ -45,6 +47,8 @@ $paciente = $resultPaciente->fetch_assoc();
 $resultPaciente->free();
 $stmtPaciente->close();
 $paciente_id = $paciente["id"];
+require_once __DIR__ . '/catalogo_especialidades.php';
+[$catalogo, $opcionesPorClave] = cargarCatalogoEspecialidades($conexion);
 
 /* =====================================================
    REGISTRAR CITA
@@ -58,7 +62,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
     $doctor_id = intval($_POST["doctor_id"] ?? 0);
-    $especialidadSeleccionada = trim($_POST["especialidad_id"] ?? "");
+    $especialidadSeleccionada = (is_string($_POST["especialidad_id"] ?? null) ? trim($_POST["especialidad_id"]) : "");
     $doctorSeleccionado = $doctor_id;
     $fecha = $_POST["fecha"] ?? "";
     $hora = $_POST["hora"] ?? "";
@@ -92,27 +96,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $sqlDoctor = "
             SELECT
-                id,
+                id, especialidad,
                 hora_inicio,
                 hora_fin,
                 refrigerio_inicio,
                 refrigerio_fin
             FROM doctores
-                        WHERE id = ?
-                            AND especialidad = ?
+            WHERE activo = 1 AND id = ?
             FOR UPDATE
         ";
 
         $stmtDoctor = $conexion->prepare($sqlDoctor);
-                $stmtDoctor->bind_param("is", $doctor_id, $especialidadSeleccionada);
+        $stmtDoctor->bind_param("i", $doctor_id);
         $stmtDoctor->execute();
 
         $resultDoctor = $stmtDoctor->get_result();
 
-        if ($resultDoctor->num_rows == 0) {
-
-            $resultDoctor->free();
-            $stmtDoctor->close();
+        $doctor = $resultDoctor->fetch_assoc();
+        $resultDoctor->free();
+        $stmtDoctor->close();
+        if (!$doctor || ($opcionesPorClave[claveEspecialidad($doctor["especialidad"])] ?? null) !== $especialidadSeleccionada) {
             $conexion->rollback();
 
             $mensaje = "El doctor no corresponde a la especialidad seleccionada.";
@@ -120,11 +123,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         } else {
 
-            $doctor = $resultDoctor->fetch_assoc();
-            $resultDoctor->free();
-            $stmtDoctor->close();
 
-            $sqlBloqueoPaciente = "SELECT id FROM pacientes WHERE id = ? FOR UPDATE";
+            $sqlBloqueoPaciente = "SELECT id FROM pacientes WHERE activo = 1 AND id = ? FOR UPDATE";
             $stmtBloqueoPaciente = $conexion->prepare($sqlBloqueoPaciente);
             $stmtBloqueoPaciente->bind_param("i", $paciente_id);
             $stmtBloqueoPaciente->execute();
@@ -335,21 +335,18 @@ $sqlDoctores = "
         refrigerio_inicio,
         refrigerio_fin
     FROM doctores
+    WHERE activo = 1
     ORDER BY apellidos ASC, nombres ASC
 ";
 
 $resultDoctores = $conexion->query($sqlDoctores);
 $doctores = [];
-$especialidadesRegistradas = [];
-
 while ($doctor = $resultDoctores->fetch_assoc()) {
-    $doctores[] = $doctor;
-    $especialidadesRegistradas[$doctor["especialidad"]] = true;
+    $doctor["especialidad"] = $opcionesPorClave[claveEspecialidad($doctor["especialidad"])] ?? "";
+    if ($doctor["especialidad"] !== "") {
+        $doctores[] = $doctor;
+    }
 }
-
-$especialidades = array_keys($especialidadesRegistradas);
-natcasesort($especialidades);
-$especialidades = array_values($especialidades);
 
 ?>
 <!DOCTYPE html>
@@ -406,8 +403,12 @@ $especialidades = array_values($especialidades);
 <label for="especialidad_id">1. Especialidad médica</label>
 <select name="especialidad_id" id="especialidad_id" required>
 <option value="">Selecciona una especialidad</option>
-<?php foreach ($especialidades as $especialidad): ?>
-<option value="<?php echo htmlspecialchars($especialidad, ENT_QUOTES, "UTF-8"); ?>" <?php echo $especialidadSeleccionada === $especialidad ? "selected" : ""; ?>><?php echo htmlspecialchars($especialidad, ENT_QUOTES, "UTF-8"); ?></option>
+<?php foreach ($catalogo as $grupo => $opciones): ?>
+<optgroup label="<?= htmlspecialchars($grupo) ?>">
+    <?php foreach ($opciones as $especialidad): ?>
+    <option value="<?= htmlspecialchars($especialidad) ?>" <?= $especialidadSeleccionada === $especialidad ? "selected" : "" ?>><?= htmlspecialchars($especialidad) ?></option>
+    <?php endforeach; ?>
+</optgroup>
 <?php endforeach; ?>
 </select>
 </div>
@@ -508,7 +509,7 @@ Confirmar cita
 <!-- Scripts de Flatpickr (Calendario) -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
-<script src="js/javascript.js?v=20260930-1" defer></script>
+<script src="js/javascript.js?v=catalogo-1" defer></script>
 
 </body>
 
