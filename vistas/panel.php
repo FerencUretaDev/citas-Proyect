@@ -1097,17 +1097,24 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
 
                         <td>
                             <?php if (puedeCancelarCitaPaciente($fila)): ?>
-                                <form method="POST" action="actualizar_cita"
-                                      onsubmit="return confirm('¿Seguro que deseas cancelar esta cita?');">
-                                    <input type="hidden" name="csrf_token"
-                                           value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
-                                    <input type="hidden" name="cita_id" value="<?php echo (int)$fila['id']; ?>">
-                                    <input type="hidden" name="estado" value="cancelada">
-                                    <button type="submit"
-                                            style="background:#dc2626; color:white; border:0; padding:8px 12px; border-radius:6px; cursor:pointer;">
-                                        Cancelar cita
-                                    </button>
-                                </form>
+                                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+                                    <a href="reprogramar_cita?id=<?php echo (int)$fila['id']; ?>&amp;origen=panel"
+                                       style="display:inline-block; background:#2563eb; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:13px; line-height:1.4; white-space:nowrap;">
+                                        Reprogramar cita
+                                    </a>
+                                    <form method="POST" action="actualizar_cita"
+                                          style="margin:0;"
+                                          onsubmit="return confirm('¿Seguro que deseas cancelar esta cita?');">
+                                        <input type="hidden" name="csrf_token"
+                                               value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
+                                        <input type="hidden" name="cita_id" value="<?php echo (int)$fila['id']; ?>">
+                                        <input type="hidden" name="estado" value="cancelada">
+                                        <button type="submit"
+                                                style="background:#dc2626; color:white; border:0; padding:8px 12px; border-radius:6px; cursor:pointer; font-size:13px; line-height:1.4; white-space:nowrap;">
+                                            Cancelar cita
+                                        </button>
+                                    </form>
+                                </div>
                             <?php else: ?>
                                 <span class="accion-finalizada">Sin acciones</span>
                             <?php endif; ?>

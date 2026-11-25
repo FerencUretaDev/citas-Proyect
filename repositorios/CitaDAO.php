@@ -1,18 +1,21 @@
 <?php
 
 // Consultas de citas usadas por las reglas de reserva.
+// citaExcluir: 0 para una nueva reserva; ID de la cita al reprogramar.
 function citasPacienteDelDia(
     mysqli $conexion,
     int $pacienteId,
     string $fecha,
-    bool $bloquear = false
+    bool $bloquear = false,
+    int $citaExcluir = 0
 ): array {
     $sql = "SELECT c.hora, d.especialidad
             FROM citas c
             INNER JOIN doctores d ON d.id = c.doctor_id
             WHERE c.paciente_id = ?
             AND c.fecha = ?
-            AND c.estado <> 'cancelada'";
+            AND c.estado <> 'cancelada'
+            AND c.id <> ?";
 
     // Bloqueo compatible con MySQL y MariaDB.
     if ($bloquear) {
@@ -22,7 +25,7 @@ function citasPacienteDelDia(
     $stmt = $conexion->prepare($sql);
 
     try {
-        $stmt->bind_param('is', $pacienteId, $fecha);
+        $stmt->bind_param('isi', $pacienteId, $fecha, $citaExcluir);
         $stmt->execute();
 
         return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -89,18 +92,20 @@ function bloquearPacienteReserva(
 }
 
 
-// Verificar cruces de horarios.
+// Verificar cruces de horarios, excluyendo la propia cita al reprogramar.
 function existeCruceReserva(
     mysqli $conexion,
     int $doctor_id,
     int $paciente_id,
     string $fecha,
-    string $hora
+    string $hora,
+    int $citaExcluir = 0
 ): bool {
     $sqlExiste = "
         SELECT id
         FROM citas
         WHERE fecha = ?
+        AND id <> ?
         AND estado != 'cancelada'
         AND (
             (
@@ -123,8 +128,9 @@ function existeCruceReserva(
 
     try {
         $stmt->bind_param(
-            "sississ",
+            "siississ",
             $fecha,
+            $citaExcluir,
             $doctor_id,
             $hora,
             $hora,

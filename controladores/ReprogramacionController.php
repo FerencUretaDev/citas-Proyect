@@ -1,246 +1,139 @@
 <?php
 session_start();
-include dirname(__DIR__) . "/config/Conexion.php";
 
-if (!isset($_SESSION["id"]) || !isset($_SESSION["rol"]) || (int)$_SESSION["rol"] !== 2) {
-    header("Location: index.php");
-    exit;
+date_default_timezone_set('America/Lima');
+
+$metodo = $_SERVER['REQUEST_METHOD'] ?? '';
+if (!in_array($metodo, ['GET', 'POST'], true)) {
+    header('Allow: GET, POST');
+    http_response_code(405);
+    exit('Método no permitido.');
 }
 
-if (empty($_SESSION["csrf_token"])) {
-    $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
-}
-
-$citaId = (int)($_GET["id"] ?? $_POST["cita_id"] ?? 0);
-$origenSolicitado = $_GET["origen"] ?? $_POST["origen"] ?? "";
-$destinosRetorno = ["reporte" => "reporte_citas", "citas" => "citas_admin"];
-$origen = isset($destinosRetorno[$origenSolicitado]) ? $origenSolicitado : "panel";
-$destinoRetorno = $destinosRetorno[$origen] ?? "panel";
-$mensaje = "";
-$tipoMensaje = "error";
-$reprogramada = false;
-$fechaConsulta = "";
-$horaSeleccionada = $_POST["hora"] ?? "";
-$horariosDisponibles = [];
-
-if ($citaId <= 0) {
-    http_response_code(400);
-    exit("La cita seleccionada no es válida.");
-}
-
-function obtenerHorariosReprogramacion($conexion, $citaId, $doctorId, $pacienteId, $fecha, $doctor)
-{
-    $horariosOcupados = [];
-    $sqlOcupadas = "
-        SELECT hora
-        FROM citas
-        WHERE id <> ?
-          AND fecha = ?
-          AND estado != 'cancelada'
-          AND (doctor_id = ? OR paciente_id = ?)
-    ";
-    $stmtOcupadas = $conexion->prepare($sqlOcupadas);
-    $stmtOcupadas->bind_param("isii", $citaId, $fecha, $doctorId, $pacienteId);
-    $stmtOcupadas->execute();
-    $resultadoOcupadas = $stmtOcupadas->get_result();
-    while ($filaOcupada = $resultadoOcupadas->fetch_assoc()) {
-        $horariosOcupados[] = new DateTime($filaOcupada["hora"]);
+$rolSesion = $_SESSION['rol'] ?? null;
+$usuarioId = filter_var($_SESSION['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+if ($usuarioId === false || !in_array($rolSesion, [0, 2, '0', '2'], true)) {
+    if ($metodo === 'GET' && !isset($_SESSION['id'])) {
+        header('Location: index.php');
+        exit;
     }
-    $resultadoOcupadas->free();
-    $stmtOcupadas->close();
-
-    $inicio = new DateTime($doctor["hora_inicio"]);
-    $fin = new DateTime($doctor["hora_fin"]);
-    $ultimoInicio = clone $fin;
-    $ultimoInicio->modify("-30 minutes");
-    $horarios = [];
-
-    while ($inicio <= $ultimoInicio) {
-        $finCita = clone $inicio;
-        $finCita->modify("+30 minutes");
-        $noDisponible = false;
-
-        if (!empty($doctor["refrigerio_inicio"]) && !empty($doctor["refrigerio_fin"])) {
-            $inicioRefrigerio = new DateTime($doctor["refrigerio_inicio"]);
-            $finRefrigerio = new DateTime($doctor["refrigerio_fin"]);
-            $noDisponible = $inicio < $finRefrigerio && $finCita > $inicioRefrigerio;
-        }
-
-        foreach ($horariosOcupados as $horaOcupada) {
-            $finOcupada = clone $horaOcupada;
-            $finOcupada->modify("+30 minutes");
-            if ($inicio < $finOcupada && $finCita > $horaOcupada) {
-                $noDisponible = true;
-                break;
-            }
-        }
-
-        $hora = $inicio->format("H:i:s");
-        if ($fecha === date("Y-m-d") && $hora <= date("H:i:s")) {
-            $noDisponible = true;
-        }
-
-        if (!$noDisponible) {
-            $horarios[] = $hora;
-        }
-
-        $inicio->modify("+30 minutes");
-    }
-
-    return $horarios;
+    http_response_code(403);
+    exit('Acceso denegado.');
 }
+$rol = (int)$rolSesion;
 
-$sqlCita = "
-    SELECT c.id, c.paciente_id, c.doctor_id, c.fecha, c.hora, c.modalidad, c.estado,
-           p.nombres AS paciente_nombres, p.apellidos AS paciente_apellidos,
-           d.nombres AS doctor_nombres, d.apellidos AS doctor_apellidos,
-           d.especialidad, d.hora_inicio, d.hora_fin, d.refrigerio_inicio, d.refrigerio_fin
-    FROM citas c
-    INNER JOIN pacientes p ON p.id = c.paciente_id
-    INNER JOIN doctores d ON d.id = c.doctor_id
-    WHERE c.id = ?
-";
-$stmtCita = $conexion->prepare($sqlCita);
-$stmtCita->bind_param("i", $citaId);
-$stmtCita->execute();
-$cita = $stmtCita->get_result()->fetch_assoc();
-$stmtCita->close();
-
-if (!$cita) {
-    http_response_code(404);
-    exit("Cita no encontrada.");
-}
-
-if (!in_array($cita["estado"], ["pendiente", "confirmada"], true)) {
-    http_response_code(409);
-    exit("Solo se pueden reprogramar citas pendientes o confirmadas.");
-}
-
-$stmtOpciones = $conexion->prepare("SELECT id, nombres, apellidos, hora_inicio, hora_fin, refrigerio_inicio, refrigerio_fin
-    FROM doctores WHERE activo=1 AND especialidad=? ORDER BY apellidos, nombres");
-$stmtOpciones->bind_param("s", $cita["especialidad"]);
-$stmtOpciones->execute();
-$opciones = array_column($stmtOpciones->get_result()->fetch_all(MYSQLI_ASSOC), null, "id");
-$doctorId = filter_var($_POST["doctor_id"] ?? $_GET["doctor_id"] ?? $cita["doctor_id"], FILTER_VALIDATE_INT);
-$doctorElegido = $opciones[$doctorId] ?? null;
-
-$fechaConsulta = max(date("Y-m-d"), $cita["fecha"]);
-$fechaSolicitada = $_SERVER["REQUEST_METHOD"] === "POST"
-    ? ($_POST["fecha"] ?? "")
-    : ($_GET["fecha"] ?? $fechaConsulta);
-$fechaValidada = DateTime::createFromFormat("!Y-m-d", $fechaSolicitada);
-$erroresFecha = DateTime::getLastErrors();
-$fechaValida = $fechaValidada !== false &&
-    ($erroresFecha === false || ($erroresFecha["warning_count"] === 0 && $erroresFecha["error_count"] === 0)) &&
-    $fechaValidada->format("Y-m-d") === $fechaSolicitada &&
-    $fechaSolicitada >= date("Y-m-d");
-
-if (!$fechaValida) {
-    $mensaje = "Selecciona una fecha válida, igual o posterior a hoy.";
-    $fechaConsulta = date("Y-m-d");
-} else {
-    $fechaConsulta = $fechaSolicitada;
-}
-
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    if (!hash_equals($_SESSION["csrf_token"], $_POST["csrf_token"] ?? "")) {
+if ($metodo === 'POST') {
+    $tokenSesion = $_SESSION['csrf_token'] ?? null;
+    $tokenRecibido = $_POST['csrf_token'] ?? null;
+    if (!is_string($tokenSesion) || $tokenSesion === '' || !is_string($tokenRecibido) ||
+        !hash_equals($tokenSesion, $tokenRecibido)) {
         http_response_code(403);
-        exit("Solicitud no válida.");
+        exit('Solicitud no válida.');
+    }
+} elseif (!is_string($_SESSION['csrf_token'] ?? null) || $_SESSION['csrf_token'] === '') {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+$validarId = static function ($valor) {
+    if (!is_string($valor) && !is_int($valor)) {
+        return false;
+    }
+    return filter_var($valor, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+};
+$citaId = $validarId($metodo === 'POST' ? ($_POST['cita_id'] ?? null) : ($_GET['id'] ?? null));
+if ($citaId === false || ($metodo === 'POST' && isset($_GET['id']) && $validarId($_GET['id']) !== $citaId)) {
+    http_response_code(400);
+    exit('La cita seleccionada no es válida.');
+}
+
+$origenSolicitado = $metodo === 'POST' ? ($_POST['origen'] ?? '') : ($_GET['origen'] ?? '');
+$destinosRetorno = ['reporte' => 'reporte_citas', 'citas' => 'citas_admin'];
+$origen = $rol === 2 && is_string($origenSolicitado) && isset($destinosRetorno[$origenSolicitado])
+    ? $origenSolicitado : 'panel';
+$destinoRetorno = $destinosRetorno[$origen] ?? 'panel';
+
+try {
+    mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    require dirname(__DIR__) . '/config/Conexion.php';
+    require_once dirname(__DIR__) . '/middlewares/SesionActiva.php';
+    require_once dirname(__DIR__) . '/servicios/ReprogramacionService.php';
+    verificarPerfilActivo($conexion);
+
+    $cita = obtenerCitaReprogramacionDAO($conexion, $citaId);
+    // Para pacientes, una cita ajena y una inexistente reciben la misma respuesta.
+    if (!$cita || !autorizarReprogramacion($cita, $rol, $usuarioId)) {
+        http_response_code($rol === 2 && !$cita ? 404 : 403);
+        exit('No se puede acceder a esta cita.');
+    }
+    if (!in_array($cita['estado'], ['pendiente', 'confirmada'], true) ||
+        ($rol === 0 && !puedeReprogramarCitaPaciente($cita))) {
+        http_response_code(409);
+        exit('Esta cita ya no se puede reprogramar.');
     }
 
-    $hora = $_POST["hora"] ?? "";
-    $horaValidada = DateTime::createFromFormat("!H:i:s", $hora);
-    $erroresHora = DateTime::getLastErrors();
-    $horaValida = $horaValidada !== false &&
-        ($erroresHora === false || ($erroresHora["warning_count"] === 0 && $erroresHora["error_count"] === 0)) &&
-        $horaValidada->format("H:i:s") === $hora;
+    [, $opcionesPorClave] = cargarCatalogoEspecialidades($conexion);
+    $opciones = opcionesDoctoresReprogramacion($conexion, $cita, $opcionesPorClave);
+    $datos = $metodo === 'POST' ? $_POST : $_GET;
+    $doctorPredeterminado = isset($opciones[(int)$cita['doctor_id']])
+        ? (int)$cita['doctor_id'] : (array_key_first($opciones) ?? 0);
+    $doctorId = $validarId($datos['doctor_id'] ?? ($metodo === 'GET' ? $doctorPredeterminado : null));
+    $doctorElegido = $doctorId !== false ? ($opciones[$doctorId] ?? null) : null;
+    $doctorId = $doctorId === false ? 0 : $doctorId;
 
-    if (!$doctorElegido || !$fechaValida || !$horaValida) {
-        $mensaje = "Selecciona una fecha y un horario válidos.";
-    } else {
-        try {
-            $conexion->begin_transaction();
+    $hoy = ahoraReprogramacion()->format('Y-m-d');
+    $fechaPredeterminada = max($hoy, $cita['fecha']);
+    $fechaSolicitada = $datos['fecha'] ?? ($metodo === 'GET' ? $fechaPredeterminada : '');
+    $fechaValida = is_string($fechaSolicitada) && fechaHoraReprogramacion($fechaSolicitada, '00:00:00') !== null && $fechaSolicitada >= $hoy;
+    $fechaConsulta = $fechaValida ? $fechaSolicitada : $fechaPredeterminada;
+    $horaSeleccionada = '';
+    $horariosDisponibles = [];
+    $mensaje = '';
+    $tipoMensaje = 'error';
+    $reprogramada = false;
 
-            $pacienteId = (int)$cita["paciente_id"];
-
-            $stmtDoctor = $conexion->prepare("SELECT hora_inicio, hora_fin, refrigerio_inicio, refrigerio_fin FROM doctores WHERE activo = 1 AND id = ? AND especialidad = ? FOR UPDATE");
-            $stmtDoctor->bind_param("is", $doctorId, $cita["especialidad"]);
-            $stmtDoctor->execute();
-            $resultadoDoctor = $stmtDoctor->get_result();
-            $doctorBloqueado = $resultadoDoctor->fetch_assoc();
-            $resultadoDoctor->free();
-            $stmtDoctor->close();
-
-            $stmtPaciente = $conexion->prepare("SELECT id FROM pacientes WHERE activo = 1 AND id = ? FOR UPDATE");
-            $stmtPaciente->bind_param("i", $pacienteId);
-            $stmtPaciente->execute();
-            $resultadoPaciente = $stmtPaciente->get_result();
-            $pacienteBloqueado = $resultadoPaciente->fetch_assoc();
-            $resultadoPaciente->free();
-            $stmtPaciente->close();
-
-            $stmtBloqueoCita = $conexion->prepare("SELECT paciente_id, doctor_id, estado FROM citas WHERE id = ? FOR UPDATE");
-            $stmtBloqueoCita->bind_param("i", $citaId);
-            $stmtBloqueoCita->execute();
-            $resultadoBloqueoCita = $stmtBloqueoCita->get_result();
-            $citaBloqueada = $resultadoBloqueoCita->fetch_assoc();
-            $resultadoBloqueoCita->free();
-            $stmtBloqueoCita->close();
-
-            if (
-                !$doctorBloqueado ||
-                !$pacienteBloqueado ||
-                !$citaBloqueada ||
-                (int)$citaBloqueada["doctor_id"] !== (int)$cita["doctor_id"] ||
-                (int)$citaBloqueada["paciente_id"] !== $pacienteId ||
-                !in_array($citaBloqueada["estado"], ["pendiente", "confirmada"], true)
-            ) {
-                throw new RuntimeException("No se pudo validar el doctor o el paciente de la cita.");
-            }
-
-            $horariosDisponibles = obtenerHorariosReprogramacion($conexion, $citaId, $doctorId, $pacienteId, $fechaConsulta, $doctorBloqueado);
-            if ($doctorId === (int)$cita["doctor_id"] && $fechaConsulta === $cita["fecha"] && $hora === $cita["hora"]) {
-                throw new RuntimeException("Selecciona una fecha u horario distinto al actual.");
-            }
-            if (!in_array($hora, $horariosDisponibles, true)) {
-                throw new RuntimeException("Ese horario ya no está disponible. Selecciona otro.");
-            }
-
-            $stmtActualizar = $conexion->prepare("UPDATE citas SET doctor_id = ?, fecha = ?, hora = ? WHERE id = ? AND estado IN ('pendiente', 'confirmada')");
-            $stmtActualizar->bind_param("issi", $doctorId, $fechaConsulta, $hora, $citaId);
-            $stmtActualizar->execute();
-            $stmtActualizar->close();
-            $conexion->commit();
-
-            $cita["doctor_nombres"] = $doctorElegido["nombres"];
-            $cita["doctor_apellidos"] = $doctorElegido["apellidos"];
-            $cita["fecha"] = $fechaConsulta;
-            $cita["hora"] = $hora;
+    if (!$fechaValida) {
+        http_response_code(400);
+        $mensaje = 'Selecciona una fecha válida, igual o posterior a hoy.';
+    } elseif (!$doctorElegido) {
+        http_response_code($opciones ? 400 : 409);
+        $mensaje = $opciones ? 'Selecciona un doctor activo de la misma especialidad.' : 'No hay doctores activos de esta especialidad.';
+    } elseif ($metodo === 'POST') {
+        $hora = $_POST['hora'] ?? null;
+        if (!is_string($hora) || fechaHoraReprogramacion($fechaConsulta, $hora) === null) {
+            http_response_code(400);
+            $mensaje = 'Selecciona un horario válido.';
+        } else {
             $horaSeleccionada = $hora;
-                $mensaje = "Cita reprogramada para el " . date("d/m/Y", strtotime($fechaConsulta)) . " a las " . substr($hora, 0, 5) . ".";
-            $tipoMensaje = "success";
-            $reprogramada = true;
-        } catch (Throwable $error) {
-            $conexion->rollback();
-            $mensaje = $error instanceof RuntimeException
-                ? $error->getMessage()
-                : "No se pudo reprogramar la cita. Inténtalo de nuevo.";
-            if (!$error instanceof RuntimeException) {
-                error_log("Error al reprogramar cita: " . $error->getMessage());
+            [$ok, $mensaje, $codigo] = reprogramarCitaServicio(
+                $conexion, $cita, $rol, $usuarioId, $doctorId, $fechaConsulta, $hora, $opcionesPorClave
+            );
+            if (!$ok) {
+                http_response_code($codigo);
+                if ($codigo === 403) {
+                    exit('No se puede reprogramar esta cita.');
+                }
+            } else {
+                // La transacción ya fue confirmada por el servicio.
+                $cita['doctor_id'] = $doctorId;
+                $cita['doctor_nombres'] = $doctorElegido['nombres'];
+                $cita['doctor_apellidos'] = $doctorElegido['apellidos'];
+                $cita['especialidad'] = $doctorElegido['especialidad'];
+                $cita['fecha'] = $fechaConsulta;
+                $cita['hora'] = $hora;
+                $mensaje = 'Cita reprogramada para el ' . date('d/m/Y', strtotime($fechaConsulta)) . ' a las ' . substr($hora, 0, 5) . '.';
+                $tipoMensaje = 'success';
+                $reprogramada = true;
             }
         }
     }
+
+    if (!$reprogramada && $doctorElegido && $fechaValida) {
+        $horariosDisponibles = horariosDisponiblesReprogramacionServicio($conexion, $cita, $doctorElegido, $fechaConsulta, $opcionesPorClave);
+    }
+} catch (Throwable $error) {
+    error_log('Error en controlador de reprogramación: ' . get_class($error) . ' / ' . $error->getCode());
+    http_response_code(500);
+    exit('No se pudo procesar la reprogramación. Inténtalo nuevamente.');
 }
 
-if ($doctorElegido && $fechaValida && !$reprogramada && !$horariosDisponibles) {
-    $horariosDisponibles = obtenerHorariosReprogramacion(
-        $conexion,
-        $citaId,
-        $doctorId,
-        (int)$cita["paciente_id"],
-        $fechaConsulta,
-        $doctorElegido
-    );
-}
-
-require dirname(__DIR__) . "/vistas/reprogramar_cita.php";
+require dirname(__DIR__) . '/vistas/reprogramar_cita.php';

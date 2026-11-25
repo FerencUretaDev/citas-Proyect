@@ -12,7 +12,7 @@
     <section class="modal-cita" role="dialog" aria-modal="true" aria-labelledby="tituloReprogramar">
         <header class="modal-cita-header">
             <div>
-                <p class="modal-eyebrow">ADMINISTRACIÓN / AGENDA</p>
+                <p class="modal-eyebrow"><?php echo $rol === 0 ? "MI CUENTA / MIS CITAS" : "ADMINISTRACIÓN / AGENDA"; ?></p>
                 <h1 id="tituloReprogramar">Reprogramar cita</h1>
                 <p class="modal-subtitulo">Consulta un turno disponible con el doctor actual u otro de la misma especialidad.</p>
             </div>
@@ -29,7 +29,8 @@
                 <div><span>Especialidad</span><strong><?php echo htmlspecialchars($cita["especialidad"], ENT_QUOTES, "UTF-8"); ?></strong></div>
                 <div><span>Modalidad</span><strong><?php echo $cita["modalidad"] === "virtual" ? "Virtual" : "Presencial"; ?></strong></div>
                 <div><span>Estado actual</span><strong><?php echo htmlspecialchars(ucfirst($cita["estado"]), ENT_QUOTES, "UTF-8"); ?></strong></div>
-                    <div><span>Turno actual</span><strong><?php echo htmlspecialchars(substr($cita["hora"], 0, 5), ENT_QUOTES, "UTF-8"); ?></strong></div>
+                <div><span>Fecha actual</span><strong><?php echo htmlspecialchars(date("d/m/Y", strtotime($cita["fecha"])), ENT_QUOTES, "UTF-8"); ?></strong></div>
+                <div><span>Turno actual</span><strong><?php echo htmlspecialchars(substr($cita["hora"], 0, 5), ENT_QUOTES, "UTF-8"); ?></strong></div>
             </div>
 
             <?php if ($mensaje !== ""): ?>
@@ -55,13 +56,14 @@
                     </div>
                 </form>
 
-                <form method="POST" action="reprogramar_cita?id=<?php echo $citaId; ?>&origen=<?php echo htmlspecialchars($origen, ENT_QUOTES, "UTF-8"); ?>" class="reprogramar-confirmar-form">
+                <form method="POST" action="reprogramar_cita?id=<?php echo $citaId; ?>&origen=<?php echo htmlspecialchars($origen, ENT_QUOTES, "UTF-8"); ?>" class="reprogramar-confirmar-form" onsubmit="return confirm('¿Confirmas la reprogramación de esta cita? El turno anterior se liberará si el cambio se guarda correctamente.');">
                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION["csrf_token"], ENT_QUOTES, "UTF-8"); ?>">
                     <input type="hidden" name="doctor_id" value="<?= (int)$doctorId ?>">
                     <input type="hidden" name="cita_id" value="<?php echo $citaId; ?>">
                     <input type="hidden" name="origen" value="<?php echo htmlspecialchars($origen, ENT_QUOTES, "UTF-8"); ?>">
                     <input type="hidden" name="fecha" value="<?php echo htmlspecialchars($fechaConsulta, ENT_QUOTES, "UTF-8"); ?>">
                     <div class="campo">
+                        <p>Fecha consultada: <strong><?php echo htmlspecialchars(date("d/m/Y", strtotime($fechaConsulta)), ENT_QUOTES, "UTF-8"); ?></strong>. Si cambias el doctor o la fecha, pulsa Consultar horarios antes de confirmar.</p>
                         <label for="horaReprogramacion">Horarios disponibles<?= $doctorElegido ? ' con '.htmlspecialchars($doctorElegido['nombres'].' '.$doctorElegido['apellidos']) : '' ?></label>
                         <select id="horaReprogramacion" name="hora" required <?php echo !$horariosDisponibles ? "disabled" : ""; ?>>
                             <option value="">Selecciona un horario</option>
@@ -86,5 +88,26 @@
         </div>
     </section>
 </main>
+<?php if (!$reprogramada): ?>
+<script>
+(() => {
+    const consulta = document.querySelector(".reprogramar-fecha-form");
+    const confirmar = document.querySelector(".reprogramar-confirmar-form");
+    if (!consulta || !confirmar) return;
+    const boton = confirmar.querySelector("button[type=submit]");
+    const hora = confirmar.elements.namedItem("hora");
+    const sinHorarios = hora.disabled;
+    function actualizar() {
+        const pendiente = consulta.elements.namedItem("doctor_id").value !== confirmar.elements.namedItem("doctor_id").value ||
+            consulta.elements.namedItem("fecha").value !== confirmar.elements.namedItem("fecha").value;
+        boton.disabled = pendiente || sinHorarios;
+        hora.disabled = pendiente || sinHorarios;
+    }
+    consulta.addEventListener("input", actualizar);
+    consulta.addEventListener("change", actualizar);
+    actualizar();
+})();
+</script>
+<?php endif; ?>
 </body>
 </html>
