@@ -238,3 +238,102 @@ function cancelarCitaPacienteDAO(
         $stmt->close();
     }
 }
+
+// Consultar el historial de citas del paciente autenticado.
+function obtenerHistorialCitasPacienteDAO(
+    mysqli $conexion,
+    int $usuarioId,
+    string $ahora,
+    string $fechaInicio = "",
+    string $fechaFin = "",
+    string $especialidad = "",
+    string $estado = ""
+): array {
+
+    $sql = "
+        SELECT
+            c.id,
+            c.fecha,
+            c.hora,
+            c.modalidad,
+            c.motivo,
+            c.estado,
+            d.nombres AS doctor_nombres,
+            d.apellidos AS doctor_apellidos,
+            d.especialidad
+
+        FROM citas c
+
+        INNER JOIN pacientes p
+            ON p.id = c.paciente_id
+
+        INNER JOIN doctores d
+            ON d.id = c.doctor_id
+
+        WHERE p.usuario_id = ?
+          AND p.activo = 1
+
+          AND (
+              c.estado IN ('atendida', 'cancelada')
+              OR TIMESTAMP(c.fecha, c.hora) < ?
+          )
+    ";
+
+    $tipos = "is";
+    $parametros = [$usuarioId, $ahora];
+
+    // Filtrar por fecha inicial.
+    if ($fechaInicio !== "") {
+        $sql .= " AND c.fecha >= ?";
+        $tipos .= "s";
+        $parametros[] = $fechaInicio;
+    }
+
+    // Filtrar por fecha final.
+    if ($fechaFin !== "") {
+        $sql .= " AND c.fecha <= ?";
+        $tipos .= "s";
+        $parametros[] = $fechaFin;
+    }
+
+    // Filtrar por especialidad.
+    if ($especialidad !== "") {
+        $sql .= " AND d.especialidad = ?";
+        $tipos .= "s";
+        $parametros[] = $especialidad;
+    }
+
+    // Filtrar por estado.
+    if ($estado !== "") {
+        $sql .= " AND c.estado = ?";
+        $tipos .= "s";
+        $parametros[] = $estado;
+    }
+
+    $sql .= "
+        ORDER BY c.fecha DESC,
+                 c.hora DESC,
+                 c.id DESC
+    ";
+
+    $stmt = $conexion->prepare($sql);
+
+    try {
+
+        $stmt->bind_param(
+            $tipos,
+            ...$parametros
+        );
+
+        $stmt->execute();
+
+        return $stmt
+            ->get_result()
+            ->fetch_all(MYSQLI_ASSOC);
+
+    } finally {
+
+        $stmt->close();
+
+    }
+}

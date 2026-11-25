@@ -3,9 +3,10 @@ $paginaActiva = $paginaActiva ?? "panel";
 
 $menusPorRol = [
     0 => [
-        ["panel", "panel", "⌂", "Inicio"],
-        ["sacar_cita", "sacar_cita", "📅", "Sacar cita"],
-        ["citas", "panel", "📋", "Mis citas"]
+    ["panel", "panel", "⌂", "Inicio"],
+    ["sacar_cita", "sacar_cita", "📅", "Sacar cita"],
+    ["citas", "panel", "📋", "Mis citas"],
+    ["historial_citas", "historial_citas", "🕒", "Mi historial"]
     ],
     1 => [
         ["panel", "panel", "⌂", "Inicio"],
