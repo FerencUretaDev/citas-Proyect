@@ -119,15 +119,64 @@ public final class App {
     }
 
     private static Connection connect() throws Exception {
-        String host = System.getenv().getOrDefault("DB_HOST", "localhost");
-        String database = System.getenv().getOrDefault("DB_NAME", "sistema");
-        String user = System.getenv("DB_USER");
-        if (user == null || user.isBlank()) {
-            throw new IllegalArgumentException("DB_USER es obligatorio.");
-        }
-        Properties credentials = new Properties();
-        credentials.setProperty("user", user);
-        credentials.setProperty("password", System.getenv().getOrDefault("DB_PASSWORD", ""));
-        return DriverManager.getConnection("jdbc:mysql://" + host + "/" + database, credentials);
+
+    String host = System.getenv()
+            .getOrDefault("DB_HOST", "localhost");
+
+    String port = System.getenv()
+            .getOrDefault("DB_PORT", "3306");
+
+    String database = System.getenv()
+            .getOrDefault("DB_NAME", "sistema");
+
+    String user = System.getenv("DB_USER");
+
+    String password = System.getenv()
+            .getOrDefault("DB_PASSWORD", "");
+
+    if (user == null || user.isBlank()) {
+        throw new IllegalArgumentException(
+                "DB_USER es obligatorio."
+        );
+    }
+
+    boolean local = host.equalsIgnoreCase("localhost")
+            || host.equals("127.0.0.1");
+
+    String ssl = System.getenv()
+            .getOrDefault("DB_SSL", local ? "false" : "true");
+
+    if (!ssl.equalsIgnoreCase("true")
+            && !ssl.equalsIgnoreCase("false")) {
+        throw new IllegalArgumentException(
+                "DB_SSL debe ser true o false."
+        );
+    }
+
+    boolean sslRequired = Boolean.parseBoolean(ssl);
+
+    if (!local && !sslRequired) {
+        throw new IllegalArgumentException(
+                "TLS es obligatorio para conexiones remotas."
+        );
+    }
+
+    Properties credentials = new Properties();
+
+    credentials.setProperty("user", user);
+    credentials.setProperty("password", password);
+
+    credentials.setProperty(
+            "sslMode",
+            sslRequired ? "VERIFY_IDENTITY" : "PREFERRED"
+    );
+
+    credentials.setProperty("connectTimeout", "10000");
+    credentials.setProperty("socketTimeout", "30000");
+
+    String url = "jdbc:mysql://" + host
+            + ":" + port + "/" + database;
+
+    return DriverManager.getConnection(url, credentials);
     }
 }

@@ -2,64 +2,130 @@
 session_start();
 
 // Solo administradores
-if (!isset($_SESSION["id"]) || ($_SESSION["rol"] ?? null) != 2) {
+if (!isset($_SESSION["id"]) ||
+    !in_array($_SESSION["rol"] ?? null, [2, "2"], true)) {
     http_response_code(403);
     exit("Acceso denegado");
 }
 
-// Leer configuración privada
-$config = parse_ini_file(
-    "C:/xampp/private/config/reportes.ini",
-    false,
-    INI_SCANNER_RAW
-);
+session_write_close();
 
-if ($config === false ||
-    empty($config["DB_USER"]) ||
-    !isset($config["DB_PASSWORD"])) {
+// Identificar el entorno
+$windows = PHP_OS_FAMILY === "Windows";
+
+$base = $windows
+    ? "C:/xampp/private"
+    : "/home/sistemacitasmedicas/private";
+
+$java = $windows
+    ? "C:/Program Files/Java/jdk-27.0.1.0.3/bin/java.exe"
+    : "/usr/bin/java";
+
+$jar = $base . "/java/modulo-reportes.jar";
+$carpeta = $base . "/reportes";
+
+// Leer configuracion privada
+try {
+    if ($windows) {
+        $config = parse_ini_file(
+            $base . "/config/reportes.ini",
+            false,
+            INI_SCANNER_RAW
+        );
+    } else {
+        umask(0077);
+
+        $config = json_decode(
+            file_get_contents($base . "/config/database.json"),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+    }
+
+    if (
+        !is_array($config) ||
+        empty($config["DB_USER"]) ||
+        !isset($config["DB_PASSWORD"])
+    ) {
+        throw new RuntimeException("Configuracion invalida.");
+    }
+
+    if (
+        !$windows &&
+        (
+            empty($config["DB_HOST"]) ||
+            empty($config["DB_NAME"]) ||
+            empty($config["DB_PASSWORD"]) ||
+            ($config["DB_SSL"] ?? false) !== true
+        )
+    ) {
+        throw new RuntimeException("Configuracion TLS invalida.");
+    }
+
+} catch (Throwable $e) {
     http_response_code(500);
-    exit("Error de configuración del reporte.");
+    exit("Error de configuracion del reporte.");
 }
 
-$java = "C:/Program Files/Java/jdk-27.0.1.0.3/bin/java.exe";
-$jar = "C:/xampp/private/java/modulo-reportes.jar";
-$carpeta = "C:/xampp/private/reportes";
-
-// Nombre único para cada descarga
-$archivo = $carpeta . "/reporte_" .
-    bin2hex(random_bytes(12)) . ".xlsx";
-
-if (!is_file($java) || !is_file($jar) || !is_dir($carpeta)) {
+// Verificar los recursos necesarios
+if (
+    !function_exists("proc_open") ||
+    !is_file($java) ||
+    !is_file($jar) ||
+    !is_dir($carpeta) ||
+    !is_writable($carpeta)
+) {
     http_response_code(500);
-    exit("No se encontraron los archivos necesarios.");
+    exit("No se encontraron los recursos necesarios.");
 }
 
-// Ejecutar Java sin colocar la contraseña en el comando
-// Recibir los filtros desde el formulario
+// Recibir y validar filtros
 $fechaInicio = $_GET["fecha_inicio"] ?? "";
 $fechaFin = $_GET["fecha_fin"] ?? "";
-$dni = trim($_GET["dni"] ?? "");
+$dni = $_GET["dni"] ?? "";
 $estado = $_GET["estado"] ?? "";
 
-// Validar las fechas
+foreach ([$fechaInicio, $fechaFin, $dni, $estado] as $valor) {
+    if (!is_string($valor)) {
+        http_response_code(400);
+        exit("Filtro no valido.");
+    }
+}
+
+$dni = trim($dni);
+
+// Validar fechas
 foreach ([$fechaInicio, $fechaFin] as $fecha) {
     if ($fecha !== "") {
-        $f = DateTimeImmutable::createFromFormat("!Y-m-d", $fecha);
+        $f = DateTimeImmutable::createFromFormat(
+            "!Y-m-d",
+            $fecha
+        );
 
         if (!$f || $f->format("Y-m-d") !== $fecha) {
             http_response_code(400);
-            exit("Fecha no válida.");
+            exit("Fecha no valida.");
         }
     }
 }
 
-// Validar el DNI
-if (!preg_match('/^[0-9]{0,8}$/', $dni)) {
+if (
+    $fechaInicio !== "" &&
+    $fechaFin !== "" &&
+    $fechaInicio > $fechaFin
+) {
     http_response_code(400);
-    exit("DNI no válido.");
+    exit("El rango de fechas no es valido.");
 }
 
-// Validar el estado
+// Validar DNI
+if (!preg_match('/\A(?:[0-9]{8})?\z/', $dni)) {
+    http_response_code(400);
+    exit("DNI no valido.");
+}
+
+// Validar estado
 $estadosPermitidos = [
     "",
     "pendiente",
@@ -70,12 +136,51 @@ $estadosPermitidos = [
 
 if (!in_array($estado, $estadosPermitidos, true)) {
     http_response_code(400);
-    exit("Estado no válido.");
+    exit("Estado no valido.");
 }
 
-// Enviar los filtros al módulo Java
-$comando = [
-    $java,
+// Nombre unico del archivo temporal
+$archivo = $carpeta . "/reporte_" .
+    bin2hex(random_bytes(12)) . ".xlsx";
+
+// Preparar variables de entorno
+$entorno = getenv();
+
+$entorno["DB_HOST"] = $config["DB_HOST"] ?? "localhost";
+$entorno["DB_NAME"] = $config["DB_NAME"] ?? "sistema";
+$entorno["DB_USER"] = $config["DB_USER"];
+$entorno["DB_PASSWORD"] = $config["DB_PASSWORD"];
+$entorno["DB_PORT"] = (string) ($config["DB_PORT"] ?? 3306);
+
+if ($windows) {
+    unset($entorno["DB_SSL"]);
+
+    $entorno["SystemRoot"] =
+        getenv("SystemRoot") ?: "C:\\Windows";
+
+    $entorno["TEMP"] =
+        getenv("TEMP") ?: "C:\\Windows\\Temp";
+
+    $entorno["TMP"] =
+        getenv("TMP") ?: "C:\\Windows\\Temp";
+} else {
+    $entorno["DB_SSL"] = "true";
+}
+
+// Preparar ejecucion de Java
+$comando = [$java];
+
+// Limitar recursos en alwaysdata
+if (!$windows) {
+    $comando = array_merge($comando, [
+        "-Xms16m",
+        "-Xmx96m",
+        "-XX:ActiveProcessorCount=1"
+    ]);
+}
+
+$comando = array_merge($comando, [
+    "-Djava.io.tmpdir=" . $carpeta,
     "-jar",
     $jar,
     $archivo,
@@ -83,70 +188,78 @@ $comando = [
     $fechaFin,
     $dni,
     $estado
-];
-
-$entorno = [
-    "DB_HOST" => $config["DB_HOST"] ?? "localhost",
-    "DB_NAME" => $config["DB_NAME"] ?? "sistema",
-    "DB_USER" => $config["DB_USER"],
-    "DB_PASSWORD" => $config["DB_PASSWORD"],
-    "SystemRoot" => getenv("SystemRoot") ?: "C:\\Windows",
-    "TEMP" => getenv("TEMP") ?: "C:\\Windows\\Temp",
-    "TMP" => getenv("TMP") ?: "C:\\Windows\\Temp"
-];
+]);
 
 $descriptores = [
     0 => ["pipe", "r"],
     1 => ["pipe", "w"],
-    2 => ["pipe", "w"]
+    2 => ["redirect", 1]
 ];
 
-$proceso = proc_open(
-    $comando,
-    $descriptores,
-    $tuberias,
-    $carpeta,
-    $entorno
-);
+try {
+    $proceso = proc_open(
+        $comando,
+        $descriptores,
+        $tuberias,
+        $carpeta,
+        $entorno
+    );
 
-if (!is_resource($proceso)) {
-    http_response_code(500);
-    exit("No se pudo iniciar Java.");
-}
+    if (!is_resource($proceso)) {
+        throw new RuntimeException("No se pudo iniciar Java.");
+    }
 
-fclose($tuberias[0]);
+    fclose($tuberias[0]);
 
-$salida = stream_get_contents($tuberias[1]);
-fclose($tuberias[1]);
+    $salida = stream_get_contents($tuberias[1]);
+    fclose($tuberias[1]);
 
-$errores = stream_get_contents($tuberias[2]);
-fclose($tuberias[2]);
+    $codigo = proc_close($proceso);
 
-$codigo = proc_close($proceso);
+    clearstatcache(true, $archivo);
 
-if ($codigo !== 0 || !is_file($archivo) || filesize($archivo) === 0) {
+    if (
+        $codigo !== 0 ||
+        !is_file($archivo) ||
+        filesize($archivo) === 0
+    ) {
+        throw new RuntimeException(
+            "Error de Java. Codigo: " . $codigo
+        );
+    }
+
+    // Descargar archivo Excel
+    header(
+        "Content-Type: application/vnd.openxmlformats-" .
+        "officedocument.spreadsheetml.sheet"
+    );
+
+    header(
+        'Content-Disposition: attachment; ' .
+        'filename="reporte_citas_java.xlsx"'
+    );
+
+    header("Content-Length: " . filesize($archivo));
+    header("Cache-Control: no-store");
+    header("X-Content-Type-Options: nosniff");
+
+    readfile($archivo);
+
+} catch (Throwable $e) {
+
+    error_log("Error en exportacion Java. Codigo: " . $e->getCode());
+
+    if (!headers_sent()) {
+        http_response_code(500);
+        echo "No se pudo generar el reporte Excel.";
+    }
+
+} finally {
+
+    // Eliminar archivo temporal
     if (is_file($archivo)) {
         unlink($archivo);
     }
-
-    error_log(
-    "Error al generar Excel con Java. Código: " .
-    $codigo . " | Detalle: " . $errores .
-    " | Salida: " . $salida
-);
-
-    http_response_code(500);
-    exit("No se pudo generar el reporte Excel.");
 }
 
-// Descargar el archivo
-header("Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-header('Content-Disposition: attachment; filename="reporte_citas_java.xlsx"');
-header("Content-Length: " . filesize($archivo));
-header("Cache-Control: no-store");
-
-readfile($archivo);
-
-// Eliminar el archivo temporal
-unlink($archivo);
 exit;

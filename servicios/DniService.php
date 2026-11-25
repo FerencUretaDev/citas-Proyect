@@ -1,7 +1,12 @@
 <?php
 function consultarDniServicio(string $dni): array
 {
-    $ruta = 'C:/xampp/private/config/dni.ini';
+    $ruta = getenv('DNI_CONFIG_FILE') ?: (
+    PHP_OS_FAMILY === 'Windows'
+        ? 'C:/xampp/private/config/dni.ini'
+        : '/home/sistemacitasmedicas/private/config/dni.ini'
+    );
+
     $config = is_readable($ruta) ? parse_ini_file($ruta, false, INI_SCANNER_RAW) : [];
     $token = trim($config['APIPERU_TOKEN'] ?? '');
     if ($token === '' || $token === 'PEGA_AQUI_TU_TOKEN' || preg_match('/[\r\n]/', $token)) {
