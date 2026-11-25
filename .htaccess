@@ -2,6 +2,10 @@ Options -Indexes -MultiViews
 DirectoryIndex index.php
 RewriteEngine On
 
+# Proteccion de dependencias de Composer
+RewriteRule ^vendor(?:/|$) - [F,END,NC]
+RewriteRule ^composer\.(?:json|lock)(?:/|$) - [F,END,NC]
+
 # Bloquear solicitudes HTTP a capas internas, respaldos y archivos sensibles.
 RewriteRule ^(?:controladores|servicios|repositorios|modelos|vistas|middlewares|config|pruebas|migraciones|modulo-reportes)(?:/|$) - [F,END,NC]
 RewriteRule (^|/)\. - [F,END]

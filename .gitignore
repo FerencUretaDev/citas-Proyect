@@ -11,3 +11,6 @@
 /prueba_java.php
 /verificar_curl.php
 /modulo-reportes/target/
+
+# Dependencias de Composer
+/vendor/
