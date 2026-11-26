@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Administrar pacientes</title>
     <link rel="stylesheet" href="css/style.css?v=20261011-responsive">
-    <link rel="stylesheet" href="css/usuarios-directorio.css?v=20261124">
+    <link rel="stylesheet" href="css/usuarios-directorio.css?v=20261126-password-ui">
 </head>
 <body class="page-pacientes has-sidebar">
 <?php include dirname(__DIR__) . "/vistas/componentes/sidebar.php"; ?>
@@ -70,6 +70,46 @@
                         </div>
                     <?php endif; ?>
 
+                    <?php if ($estaCreando || ($usuarioFicha ?? "") !== ""): ?>
+                        <fieldset class="password-admin" data-password-admin>
+                            <legend>Credenciales de acceso</legend>
+                            <div class="password-admin-campos">
+                                <label for="password-admin-nueva"><?= $estaCreando ? "Contraseña" : "Nueva contraseña (opcional)" ?>
+                                    <input id="password-admin-nueva" type="password" name="password" minlength="8" maxlength="72" autocomplete="new-password"
+                                           pattern="(?=.*\p{Lu})(?=.*\p{Ll})(?=.*[0-9])(?=.*[\p{P}\p{S}])[^\p{Cc}\p{Zl}\p{Zp}]{8,}"
+                                           aria-describedby="reglas-password" title="Mínimo 8 caracteres: mayúscula, minúscula, número y símbolo."
+                                           <?= $estaCreando ? "required" : "" ?>>
+                                </label>
+                                <label for="password-admin-confirmar">Confirmar contraseña
+                                    <input id="password-admin-confirmar" type="password" name="confirmar_password" minlength="8" maxlength="72" autocomplete="new-password"
+                                           aria-describedby="reglas-password" <?= $estaCreando ? "required" : "" ?>>
+                                </label>
+                            </div>
+                            <button class="password-admin-toggle" type="button" data-mostrar-password aria-pressed="false" aria-controls="password-admin-nueva password-admin-confirmar" hidden>
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path class="password-admin-ojo-tachado" d="m3 3 18 18"/></svg>
+                                <span data-texto-password>Mostrar contraseñas</span>
+                            </button>
+                            <div id="reglas-password" class="password-reglas-admin">
+                                <strong>Requisitos de contraseña</strong>
+                                <ul class="password-admin-lista">
+                                    <li data-regla="longitud">Mínimo 8 caracteres</li>
+                                    <li data-regla="mayuscula">Una letra mayúscula</li>
+                                    <li data-regla="minuscula">Una letra minúscula</li>
+                                    <li data-regla="numero">Un número</li>
+                                    <li data-regla="simbolo">Un símbolo especial</li>
+                                    <li data-regla="coincidencia">Las contraseñas coinciden</li>
+                                </ul>
+                                <p class="password-admin-nota">Máximo 72 bytes.</p>
+                                <?php if (!($estaCreando)): ?>
+                                    <p class="password-admin-nota">Deja ambos campos vacíos para conservar la contraseña actual.</p>
+                                <?php endif; ?>
+                                <p class="password-admin-estado" data-password-estado role="status" aria-live="polite"></p>
+                            </div>
+                        </fieldset>
+                    <?php else: ?>
+                        <p class="password-admin-nota">Esta ficha no tiene una cuenta asignada para cambiar la contraseña.</p>
+                    <?php endif; ?>
+
                     <div class="paciente-form-grid">
                         <label>DNI <span>8 dígitos</span>
                             <input type="text" name="dni" inputmode="numeric" minlength="8" maxlength="8"
@@ -91,9 +131,6 @@
                             </label>
                             <label>Segundo apellido <span>Opcional</span>
                                 <input name="segundo_apellido" maxlength="100" value="<?php echo htmlspecialchars($segundoApellido, ENT_QUOTES, "UTF-8"); ?>">
-                            </label>
-                            <label>Contraseña
-                                <input type="password" name="password" minlength="10" maxlength="72" autocomplete="new-password" required>
                             </label>
                         <?php else: ?>
                         <label>Apellidos
@@ -124,7 +161,7 @@
 
                     <div class="paciente-form-footer">
                         <?php if ($estaEditando): ?>
-                            <p>El nombre de usuario y la contraseña no se modifican desde esta ficha.</p>
+                            <p>El nombre de usuario no se modifica desde esta ficha.</p>
                         <?php endif; ?>
                         <button type="submit"><?php echo $estaCreando ? "Registrar paciente" : "Guardar cambios"; ?></button>
                     </div>
@@ -188,5 +225,6 @@
 </main>
 <script src="js/javascript.js?v=20261124-usuarios" defer></script>
 <script src="js/consulta_dni.js" defer></script>
+<script src="js/password-admin.js?v=2" defer></script>
 </body>
 </html>

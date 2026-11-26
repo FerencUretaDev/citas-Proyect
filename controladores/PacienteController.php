@@ -56,7 +56,8 @@ if ($pacienteId > 0) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    if (!hash_equals($_SESSION["csrf_token"], $_POST["csrf_token"] ?? "")) {
+    $tipoMensaje = "error";
+    if (!is_string($_POST["csrf_token"] ?? null) || !hash_equals($_SESSION["csrf_token"], $_POST["csrf_token"])) {
         http_response_code(403);
         exit("Solicitud no válida.");
     }
@@ -68,6 +69,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit("Ficha de paciente no válida.");
     }
     $password = $_POST["password"] ?? "";
+    $confirmacionPassword = $_POST["confirmar_password"] ?? "";
+    $errorPassword = validarPasswordDirectorio($password, $confirmacionPassword, !$estaCreando);
     foreach ($formulario as $campo => $valor) {
         $entrada = $_POST[$campo] ?? "";
         $entrada = is_string($entrada) ? $entrada : "";
@@ -107,10 +110,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $mensaje = "Revisa los nombres y apellidos. Los apellidos juntos admiten hasta 100 caracteres.";
     } elseif (!$datosValidos) {
         $mensaje = "Revisa los campos obligatorios, el formato de correo y la fecha de nacimiento.";
-    } elseif ($estaCreando && (!is_string($password) || strlen($password) < 10 || strlen($password) > 72 || str_contains($password, "\0"))) {
-        $mensaje = "La contraseña debe tener entre 10 y 72 bytes.";
+    } elseif ($errorPassword !== null) {
+        $mensaje = $errorPassword;
     } else {
         try {
+            $conexion->begin_transaction();
             $nombres = $formulario["nombres"];
             $apellidos = $formulario["apellidos"];
             $dni = $formulario["dni"];
@@ -122,23 +126,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             if ($estaCreando) {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
-                $conexion->begin_transaction();
                 [$usuarioId, $usuario] = crearCuentaConUsuario($conexion, $base, $hash, 0);
 
                 $stmt = $conexion->prepare("INSERT INTO pacientes (usuario_id, nombres, apellidos, dni, fecha_nacimiento, sexo, telefono, direccion, correo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 $stmt->bind_param("issssssss", $usuarioId, $nombres, $apellidos, $dni, $fechaNacimientoDb, $sexo, $telefono, $direccion, $correo);
             } else {
+                bloquearFichaDirectorio($conexion, $pacienteId, 0);
                 $stmt = $conexion->prepare("UPDATE pacientes SET nombres = ?, apellidos = ?, dni = ?, fecha_nacimiento = ?, sexo = ?, telefono = ?, direccion = ?, correo = ? WHERE activo=1 AND id = ?");
                 $stmt->bind_param("ssssssssi", $nombres, $apellidos, $dni, $fechaNacimientoDb, $sexo, $telefono, $direccion, $correo, $pacienteId);
             }
             $stmt->execute();
             $stmt->close();
-            if ($estaCreando) {
-                $conexion->commit();
+            if (!$estaCreando && $password !== "") {
+                actualizarPasswordFichaDirectorio($conexion, $pacienteId, 0, password_hash($password, PASSWORD_DEFAULT));
             }
+            $conexion->commit();
             $_SESSION["mensaje_paciente"] = $estaCreando
                 ? "Paciente registrado correctamente."
-                : "Datos del paciente actualizados correctamente.";
+                : ($password !== "" ? "Datos y contraseña del paciente actualizados correctamente." : "Datos del paciente actualizados correctamente.");
             if ($estaCreando) {
                 $_SESSION["usuario_registrado_paciente"] = $usuario;
             } else {
@@ -146,10 +151,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
             header("Location: pacientes");
             exit;
+        } catch (DomainException $error) {
+            $conexion->rollback();
+            $mensaje = $error->getMessage();
         } catch (mysqli_sql_exception $error) {
-            if ($estaCreando) {
-                $conexion->rollback();
-            }
+            $conexion->rollback();
             $tipoMensaje = "error";
             error_log("Error al guardar paciente. Código MySQL: " . $error->getCode());
             $mensaje = $error->getCode() === 1062

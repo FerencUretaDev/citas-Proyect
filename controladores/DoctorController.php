@@ -64,7 +64,8 @@ if (isset($_SESSION["mensaje_doctor"])) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    if (!hash_equals($_SESSION["csrf_token"], $_POST["csrf_token"] ?? "")) {
+    $tipoMensaje = "error";
+    if (!is_string($_POST["csrf_token"] ?? null) || !hash_equals($_SESSION["csrf_token"], $_POST["csrf_token"])) {
         http_response_code(403);
         exit("Solicitud no válida.");
     }
@@ -74,6 +75,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $formulario[$campo] = is_string($entrada) ? trim($entrada) : "";
     }
     $password = $_POST["password"] ?? "";
+    $confirmacionPassword = $_POST["confirmar_password"] ?? "";
+    $errorPassword = validarPasswordDirectorio($password, $confirmacionPassword, $editando);
     if (!$editando) {
         $primerApellido = trim(is_string($_POST["primer_apellido"] ?? null) ? $_POST["primer_apellido"] : "");
         $segundoApellido = trim(is_string($_POST["segundo_apellido"] ?? null) ? $_POST["segundo_apellido"] : "");
@@ -86,7 +89,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     };
 
     $datosValidos = $formulario["nombres"] !== "" && $formulario["apellidos"] !== "" &&
-        $formulario["especialidad"] !== "" && ($editando || (is_string($password) && strlen($password) >= 10 && strlen($password) <= 72 && !str_contains($password, "\0"))) && $emailValido &&
+        $formulario["especialidad"] !== "" && $emailValido &&
         $horaValida($formulario["hora_inicio"]) && $horaValida($formulario["hora_fin"]) &&
         $formulario["hora_inicio"] < $formulario["hora_fin"];
 
@@ -104,7 +107,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } elseif (!in_array($formulario["especialidad"], $opcionesPorClave, true)) {
         $mensaje = "Selecciona una especialidad de la lista.";
     } elseif (!$datosValidos) {
-        $mensaje = "Revisa los campos: contraseña de 10 a 72 bytes, correo válido y horarios coherentes.";
+        $mensaje = "Revisa los campos obligatorios, correo válido y horarios coherentes.";
+    } elseif ($errorPassword !== null) {
+        $mensaje = $errorPassword;
     } else {
         try {
             $conexion->begin_transaction();
@@ -121,6 +126,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $refrigerioFin = $formulario["refrigerio_fin"] !== "" ? $formulario["refrigerio_fin"] . ":00" : null;
 
             if ($editando) {
+                bloquearFichaDirectorio($conexion, $doctorId, 1);
                 $stmtDoctor = $conexion->prepare("UPDATE doctores SET nombres=?, apellidos=?, cmp=?, especialidad=?, telefono=?, correo=?,
                     hora_inicio=?, hora_fin=?, refrigerio_inicio=?, refrigerio_fin=? WHERE id=? AND activo=1");
                 $stmtDoctor->bind_param("ssssssssssi", $nombres, $apellidos, $cmp, $especialidad, $telefono, $correo, $horaInicio, $horaFin, $refrigerioInicio, $refrigerioFin, $doctorId);
@@ -133,8 +139,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $stmtDoctor->execute();
             $stmtDoctor->close();
 
+            if ($editando && $password !== "") {
+                actualizarPasswordFichaDirectorio($conexion, $doctorId, 1, password_hash($password, PASSWORD_DEFAULT));
+            }
             $conexion->commit();
-            $_SESSION["mensaje_doctor"] = $editando ? "Datos del doctor actualizados." : "Doctor registrado correctamente.";
+            $_SESSION["mensaje_doctor"] = $editando
+                ? ($password !== "" ? "Datos y contraseña del doctor actualizados correctamente." : "Datos del doctor actualizados.")
+                : "Doctor registrado correctamente.";
             if (!$editando) {
                 $_SESSION["usuario_registrado_doctor"] = $usuario;
             } else {
@@ -142,9 +153,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
             header("Location: doctores");
             exit;
+        } catch (DomainException $error) {
+            $conexion->rollback();
+            $mensaje = $error->getMessage();
         } catch (mysqli_sql_exception $error) {
             $conexion->rollback();
-            error_log("Error al registrar doctor: " . $error->getMessage());
+            error_log("Error al guardar doctor. Código MySQL: " . $error->getCode());
             $mensaje = $error->getCode() === 1062
                 ? "Ya existe un registro con esos datos."
                 : "No se pudo registrar el doctor. Revisa los datos e inténtalo de nuevo.";

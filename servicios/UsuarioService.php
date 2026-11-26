@@ -48,3 +48,26 @@ function crearCuentaConUsuario(mysqli $conexion, string $base, string $hash, int
         $stmt->close();
     }
 }
+
+
+// Política común para el alta y el restablecimiento administrativo.
+// 72 bytes evita el truncamiento silencioso de bcrypt (PASSWORD_DEFAULT actual).
+function validarPasswordDirectorio(mixed $password, mixed $confirmacion, bool $editando): ?string
+{
+    if (!is_string($password) || !is_string($confirmacion)) {
+        return "Formato de contraseña no válido.";
+    }
+    if ($editando && $password === "" && $confirmacion === "") {
+        return null;
+    }
+    if (strlen($password) > 72) {
+        return "La contraseña no puede superar 72 bytes.";
+    }
+    if (preg_match('/\A(?=.*\p{Lu})(?=.*\p{Ll})(?=.*[0-9])(?=.*[\p{P}\p{S}])[^\p{Cc}\p{Zl}\p{Zp}]{8,}\z/u', $password) !== 1) {
+        return "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un símbolo.";
+    }
+    if ($password !== $confirmacion) {
+        return "Las contraseñas no coinciden.";
+    }
+    return null;
+}
