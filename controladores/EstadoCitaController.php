@@ -138,6 +138,13 @@ if ($rol === 0) {
     $stmtEstadoActual->close();
     $transiciones = TRANSICIONES_ESTADO_CITA;
 
+    // Una atención nueva solo puede finalizarse desde el registro clínico del doctor.
+    if ($estado === 'atendida' && $estadoActual !== $estado) {
+        $conexion->rollback();
+        http_response_code(409);
+        exit('La atención debe finalizarse desde Historia clínica por el doctor asignado.');
+    }
+
     if ($estadoActual !== $estado && !in_array($estado, $transiciones[$estadoActual], true)) {
         $conexion->rollback();
         http_response_code(400);

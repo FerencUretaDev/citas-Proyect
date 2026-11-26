@@ -1,0 +1,23 @@
+<?php $e=static fn($v)=>htmlspecialchars(is_scalar($v)?(string)$v:'',ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
+$campos=['antecedentes'=>'Antecedentes relevantes','alergias'=>'Alergias','evaluacion'=>'Evaluación médica','diagnostico'=>'Diagnóstico','tratamiento'=>'Tratamiento indicado','recomendaciones'=>'Recomendaciones']; ?>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Historia clínica</title><link rel="stylesheet" href="css/style.css?v=20261011-responsive"><link rel="stylesheet" href="css/historia-clinica.css?v=1"></head>
+<body class="page-reporte has-sidebar"><?php require __DIR__.'/componentes/sidebar.php'; ?><main class="contenedor hc-main">
+<header class="hc-header"><h1><?= $rol===1?'Historia clínica':'Mi historia clínica' ?></h1><p><?= $rol===1?'Consulta y registra las atenciones de tus citas asignadas.':'Consulta los resúmenes de tus atenciones médicas.' ?></p></header>
+<?php if($mensaje):?><p class="hc-aviso" role="status"><?= $e($mensaje) ?></p><?php endif;?>
+<?php if($error):?><p class="hc-error" role="alert"><?= $e($error) ?></p><?php endif;?>
+<?php if(!$detalle):?>
+<section class="hc-card"><h2><?= $rol===1?'Atenciones y citas confirmadas':'Atenciones registradas' ?></h2>
+<?php if(!$filas):?><p>No hay registros disponibles.</p><?php else:?><div class="hc-table"><table><thead><tr><th>Cita</th><th>Fecha programada</th><th><?= $rol===1?'Paciente':'Doctor' ?></th><th>Especialidad</th><th>Modalidad</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
+<?php foreach($filas as $f):?><tr><td>#<?= (int)$f['cita_id'] ?></td><td><?= $e($f['fecha'].' '.substr($f['hora'],0,5)) ?></td><td><?= $e($rol===1?$f['paciente']:$f['doctor']) ?></td><td><?= $e($f['especialidad']) ?></td><td><?= $e(ucfirst($f['modalidad'])) ?></td><td><?= $f['historia_id']?'Atendida':'Confirmada' ?></td><td><?php if($f['historia_id']||hcPuedeRegistrar($f,hcAhora())):?><a class="hc-btn" href="historia_clinica.php?id=<?= (int)$f['cita_id'] ?>"><?= $f['historia_id']?'Ver resumen':'Registrar atención' ?></a><?php else:?>Aún no disponible<?php endif;?></td></tr><?php endforeach;?>
+</tbody></table></div><?php endif;?></section>
+<?php else:?>
+<section class="hc-card"><div class="hc-heading"><h2><?= $detalle['historia_id']?'Resumen de atención':'Registro de atención médica' ?> · Cita #<?= (int)$detalle['cita_id'] ?></h2><a href="historia_clinica.php">Volver al historial</a></div>
+<dl class="hc-info"><div><dt>Paciente</dt><dd><?= $e($detalle['paciente']) ?></dd></div><div><dt>Doctor</dt><dd><?= $e($detalle['doctor']) ?></dd></div><div><dt>Especialidad</dt><dd><?= $e($detalle['especialidad']) ?></dd></div><div><dt>Modalidad</dt><dd><?= $e(ucfirst($detalle['modalidad'])) ?></dd></div><div><dt>Fecha programada</dt><dd><?= $e($detalle['fecha'].' '.substr($detalle['hora'],0,5)) ?></dd></div><div><dt>Motivo de consulta</dt><dd><?= $e($detalle['motivo']?:'No registrado') ?></dd></div></dl>
+<?php if($detalle['historia_id']):?><p class="hc-aviso">Atención finalizada · <?= $e($detalle['fecha_atencion']) ?></p><div class="hc-fields"><?php foreach($campos as $k=>$label):?><div class="hc-lectura"><h3><?= $e($label) ?></h3><p><?= $e($detalle[$k]??'No registrado') ?></p></div><?php endforeach;?><div class="hc-lectura"><h3>Próximo control</h3><p><?= $e($detalle['proximo_control']??'No indicado') ?></p></div></div>
+<?php elseif($rol===1&&hcPuedeRegistrar($detalle,hcAhora())):?>
+<form method="post" action="historia_clinica.php" class="hc-form"><input type="hidden" name="csrf_token" value="<?= $e($_SESSION['csrf_token']) ?>"><input type="hidden" name="cita_id" value="<?= (int)$detalle['cita_id'] ?>"><div class="hc-fields">
+<?php foreach($campos as $k=>$label):$req=in_array($k,['evaluacion','diagnostico'],true);?><div><label for="hc-<?= $k ?>"><?= $e($label) ?> <?= $req?'(obligatorio)':'(opcional)' ?></label><textarea id="hc-<?= $k ?>" name="<?= $k ?>" rows="4" maxlength="3000" <?= $req?'required':'' ?>><?= $e($borrador[$k]??'') ?></textarea></div><?php endforeach;?>
+<div><label for="hc-control">Próximo control (opcional)</label><input id="hc-control" type="date" name="proximo_control" min="<?= hcAhora()->format('Y-m-d') ?>" value="<?= $e($borrador['proximo_control']??'') ?>"></div></div>
+<p>Verifica los datos antes de finalizar. El resumen no se puede editar ni eliminar desde este módulo.</p><button class="hc-btn" type="submit">Guardar y finalizar atención</button></form>
+<?php else:?><p>La atención solo puede registrarse cuando la cita esté confirmada, el pago esté aprobado si corresponde y haya llegado su horario.</p><?php endif;?></section><?php endif;?>
+</main></body></html>

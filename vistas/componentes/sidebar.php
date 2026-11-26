@@ -6,11 +6,13 @@ $menusPorRol = [
     ["panel", "panel", "⌂", "Inicio"],
     ["sacar_cita", "sacar_cita", "📅", "Sacar cita"],
     ["citas", "panel", "📋", "Mis citas"],
-    ["historial_citas", "historial_citas", "🕒", "Mi historial"]
+    ["historial_citas", "historial_citas", "🕒", "Historial de citas"],
+    ["historia_clinica", "historia_clinica.php", "📋", "Mi historia clínica"]
     ],
     1 => [
         ["panel", "panel", "⌂", "Inicio"],
-        ["citas", "panel", "📅", "Mis citas"]
+        ["citas", "panel", "📅", "Mis citas"],
+        ["historia_clinica", "historia_clinica.php", "📋", "Historia clínica"]
     ],
     2 => [
     ["panel", "panel", "⌂", "Inicio"],

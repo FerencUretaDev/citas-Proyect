@@ -249,6 +249,7 @@ if ($rol == 1) {
         SELECT
             c.id,
             (SELECT g.estado FROM pagos g WHERE g.cita_id=c.id) AS pago_estado,
+            (SELECT h.id FROM historias_clinicas h WHERE h.cita_id=c.id) AS historia_id,
             c.fecha,
             c.hora,
             c.modalidad,
@@ -369,6 +370,7 @@ if ($rol == 0) {
         SELECT
             c.id,
             (SELECT g.estado FROM pagos g WHERE g.cita_id=c.id) AS pago_estado,
+            (SELECT h.id FROM historias_clinicas h WHERE h.cita_id=c.id) AS historia_id,
             c.fecha,
             c.hora,
             c.modalidad,

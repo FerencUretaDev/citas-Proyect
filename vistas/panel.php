@@ -439,6 +439,7 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
                                 <div>Pago: <?= htmlspecialchars(ucfirst(str_replace('_',' ',$estadoPago))) ?></div>
                                 <?php if ($rol===2): ?><a class="reprogramar-link" href="pago_cita.php?id=<?= (int)$fila['id'] ?>">Consultar pago</a><?php endif; ?>
                             <?php } ?>
+                            <?php $opcionesEstado = array_values(array_diff($opcionesEstado, ['atendida'])); ?>
                             <?php if ($opcionesEstado): ?>
                                 <form method="POST" action="actualizar_cita" class="form-estado-cita">
                                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION["csrf_token"], ENT_QUOTES, "UTF-8"); ?>">
@@ -747,6 +748,12 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
                                 <div>Pago: <?= htmlspecialchars(ucfirst(str_replace('_',' ',$estadoPago))) ?></div>
                                 <?php if ($rol===2): ?><a class="reprogramar-link" href="pago_cita.php?id=<?= (int)$fila['id'] ?>">Consultar pago</a><?php endif; ?>
                             <?php } ?>
+                            <?php $opcionesEstado = array_values(array_diff($opcionesEstado, ['atendida'])); ?>
+                            <?php if ($fila['estado']==='confirmada' && ($estadoPago===null || $estadoPago==='aprobado') && ($fila['fecha'].' '.$fila['hora']) <= (new DateTimeImmutable('now',new DateTimeZone('America/Lima')))->format('Y-m-d H:i:s')): ?>
+                                <a class="reprogramar-link" href="historia_clinica.php?id=<?= (int)$fila['id'] ?>">Registrar atención</a>
+                            <?php elseif ($fila['estado']==='atendida' && !empty($fila['historia_id'])): ?>
+                                <a class="reprogramar-link" href="historia_clinica.php?id=<?= (int)$fila['id'] ?>">Ver resumen clínico</a>
+                            <?php endif; ?>
                             <?php if ($opcionesEstado): ?>
                                 <form method="POST" action="actualizar_cita" class="form-estado-cita">
                                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION["csrf_token"], ENT_QUOTES, "UTF-8"); ?>">
@@ -1104,6 +1111,9 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
                         </td>
 
                         <td>
+                            <?php if ($fila['estado']==='atendida' && !empty($fila['historia_id'])): ?>
+                                <a class="reprogramar-link" href="historia_clinica.php?id=<?= (int)$fila['id'] ?>">Ver resumen clínico</a>
+                            <?php endif; ?>
                             <?php if (($fila['pago_estado'] ?? null) !== null): ?>
                                 <div>Pago: <?= htmlspecialchars(ucfirst(str_replace('_',' ',$fila['pago_estado']))) ?></div>
                                 <a class="reprogramar-link" href="pago_cita.php?id=<?= (int)$fila['id'] ?>"><?= $fila['pago_estado']==='aprobado'?'Ver pago':'Consultar / pagar' ?></a>

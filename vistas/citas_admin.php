@@ -83,6 +83,7 @@
                                 if($pagoEstado!==null){$accionesEstado=$pagoEstado==='aprobado'?array_values(array_intersect($accionesEstado,['atendida'])):[]; ?>
                                     <div>Pago: <?= htmlspecialchars(ucfirst(str_replace('_',' ',$pagoEstado))) ?></div><a class="reprogramar-link" href="pago_cita.php?id=<?= (int)$cita['id'] ?>">Consultar pago</a>
                                 <?php } ?>
+                                <?php $accionesEstado=array_values(array_diff($accionesEstado,['atendida'])); ?>
                                 <?php if ($accionesEstado): ?>
                                     <form method="POST" action="actualizar_cita" class="form-estado-cita">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION["csrf_token"], ENT_QUOTES, "UTF-8"); ?>">
