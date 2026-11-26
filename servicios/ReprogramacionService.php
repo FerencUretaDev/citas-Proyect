@@ -3,6 +3,8 @@
 require_once __DIR__ . '/ReservaService.php';
 require_once dirname(__DIR__) . '/repositorios/ReprogramacionDAO.php';
 
+require_once dirname(__DIR__) . '/repositorios/AusenciaDAO.php';
+
 function ahoraReprogramacion(): DateTimeImmutable
 {
     return new DateTimeImmutable('now', new DateTimeZone('America/Lima'));
@@ -103,6 +105,16 @@ function horariosDisponiblesReprogramacionServicio(mysqli $conexion, array $cita
     $citaId = (int)$cita['id'];
     $pacienteId = (int)$cita['paciente_id'];
     $doctorId = (int)$doctor['id'];
+
+    // MEJORA 05: excluir fechas con ausencia.
+if (doctorTieneAusenciaDAO(
+    $conexion,
+    $doctorId,
+    $fecha
+)) {
+    return [];
+}    
+
     $especialidad = especialidadCanonicaReprogramacion($doctor['especialidad'], $opcionesPorClave);
     $restricciones = resumenRestriccionesReserva(citasPacienteDelDia($conexion, $pacienteId, $fecha, false, $citaId), $especialidad, $opcionesPorClave);
     if ($restricciones['misma_especialidad']) {
@@ -170,6 +182,20 @@ function reprogramarCitaServicio(mysqli $conexion, array $citaOriginal, int $rol
             !mismaEspecialidadReprogramacion($origen['especialidad'], $destino['especialidad'], $opcionesPorClave)) {
             throw new DomainException('Selecciona un doctor activo de la misma especialidad.', 409);
         }
+	
+	// MEJORA 05: validar ausencia del doctor de destino.
+if (doctorTieneAusenciaDAO(
+    $conexion,
+    $doctorId,
+    $fecha,
+    true
+)) {
+    throw new DomainException(
+        'El doctor no se encuentra disponible en la fecha seleccionada.',
+        409
+    );
+}
+
         if (esMismoTurnoReprogramacion($cita, $doctorId, $fecha, $hora)) {
             throw new DomainException('Selecciona un turno diferente al actual.', 409);
         }

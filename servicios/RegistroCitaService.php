@@ -1,5 +1,9 @@
 <?php
 require_once __DIR__ . '/ReservaService.php';
+
+require_once dirname(__DIR__) .
+    '/repositorios/AusenciaDAO.php';
+
 // La transacción y el orden de bloqueo se conservan del flujo original.
 function registrarCita(mysqli $conexion, int $paciente_id, int $doctor_id, string $especialidadSeleccionada, string $fecha, string $hora, string $modalidad, string $motivo, array $opcionesPorClave): array
 {
@@ -28,6 +32,23 @@ function registrarCita(mysqli $conexion, int $paciente_id, int $doctor_id, strin
                 $conexion->rollback();
                 return ["No se encontró el perfil del paciente.", "error"];
             }
+	  
+	    // MEJORA 05: verificar ausencia dentro de la transaccion.
+	if (doctorTieneAusenciaDAO(
+    	$conexion,
+    	$doctor_id,
+    	$fecha,
+    	true
+	)) {
+
+    	$conexion->rollback();
+
+    	return [
+        "El doctor no se encuentra disponible en la fecha seleccionada.",
+        "error"
+    ];
+}
+	    
 
             /* =========================================
                VALIDAR FECHA

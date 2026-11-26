@@ -6,6 +6,8 @@ include dirname(__DIR__) . "/config/Conexion.php";
 require_once dirname(__DIR__) . "/middlewares/SesionActiva.php";
 verificarPerfilActivo($conexion, true);
 
+require_once dirname(__DIR__) .
+    "/repositorios/AusenciaDAO.php";
 
 /* =====================================================
    VERIFICAR SESIÓN
@@ -101,6 +103,23 @@ if ($resultDoctor->num_rows == 0) {
 
 
 $doctor = $resultDoctor->fetch_assoc();
+
+// MEJORA 05: bloquear horarios durante ausencias.
+if (doctorTieneAusenciaDAO(
+    $conexion,
+    $doctor_id,
+    $fecha
+)) {
+
+    header("Content-Type: application/json; charset=UTF-8");
+
+    echo json_encode([
+        "horarios" => [],
+        "error" => "El doctor no se encuentra disponible en la fecha seleccionada."
+    ]);
+
+    exit;
+}
 
 $stmtPaciente = $conexion->prepare("SELECT id FROM pacientes WHERE activo = 1 AND usuario_id = ? LIMIT 1");
 $stmtPaciente->bind_param("i", $_SESSION["id"]);
