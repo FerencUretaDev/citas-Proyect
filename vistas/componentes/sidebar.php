@@ -14,11 +14,11 @@ $menusPorRol = [
     ],
     2 => [
     ["panel", "panel", "⌂", "Inicio"],
-    ["pacientes", "pacientes", "👥", "Pacientes"],
+    ["reportes", "reporte_citas", "📊", "Dashboard"],
     ["citas", "citas_admin", "📅", "Citas"],
+    ["pacientes", "pacientes", "👥", "Pacientes"],
     ["doctores", "doctores", "👨‍⚕️", "Doctores"],
-    ["ausencias_doctores", "ausencias_doctores", "📆", "Ausencias"],
-    ["reportes", "reporte_citas", "📊", "Reportes"]
+    ["ausencias_doctores", "ausencias_doctores", "📆", "Ausencias"]
     ]
 ];
 

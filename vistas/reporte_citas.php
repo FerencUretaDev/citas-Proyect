@@ -4,12 +4,13 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta charset="UTF-8">
-    <title>Reporte de Citas</title>
+    <title>Dashboard administrativo</title>
     <!-- Librería Chart.js para gráficos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     
     <link rel="stylesheet" href="css/style.css?v=20261011-responsive">
+    <link rel="stylesheet" href="css/dashboard-admin.css?v=1">
 </head>
 
 <body class="page-reporte has-sidebar">
@@ -17,7 +18,10 @@
 
 <div class="contenedor">
 
-    <h1>📊 Reporte de Citas</h1>
+    <h1>📊 Dashboard administrativo</h1>
+    <p>Analítica de citas médicas y pagos.</p>
+    <nav class="dashboard-nav" aria-label="Secciones del dashboard"><a href="#analitica-citas">Analítica de citas</a><a href="#analitica-pagos">Analítica de pagos</a></nav>
+    <h2 id="analitica-citas" class="dashboard-heading">Analítica de citas</h2>
 
     <p>
         Administrador:
@@ -167,7 +171,7 @@
          POR ESPECIALIDAD (TABLA)
     ===================================== -->
     <div class="seccion">
-        <h2>🩺 Reporte por especialidad</h2>
+        <h2>🩺 Citas por especialidad</h2>
         <table>
             <thead>
                 <tr>
@@ -194,6 +198,7 @@
         </table>
     </div>
 
+    <?php require __DIR__ . "/componentes/dashboard_pagos.php"; ?>
     <a href="citas_admin" class="boton">📅 Administrar citas</a>
     <a href="panel" class="boton">Volver al panel</a>
 
@@ -210,6 +215,7 @@ echo json_encode([
 ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 ?></script>
 <script src="js/javascript.js" defer></script>
+<script src="js/dashboard-pagos.js?v=1" defer></script>
 
 </body>
 

@@ -189,7 +189,7 @@ function insertarReserva(
 
         $ok = $stmt->execute();
 
-        return [$ok, $stmt->errno];
+        return [$ok, $stmt->errno, (int)$stmt->insert_id];
 
     } finally {
         $stmt->close();
@@ -213,6 +213,7 @@ function cancelarCitaPacienteDAO(
           AND p.usuario_id = ?
           AND p.activo = 1
           AND c.estado IN ('pendiente', 'confirmada')
+          AND NOT EXISTS (SELECT 1 FROM pagos g WHERE g.cita_id=c.id)
           AND TIMESTAMP(c.fecha, c.hora) > ?
     ";
 

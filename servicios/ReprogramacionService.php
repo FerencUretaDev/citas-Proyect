@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/ReservaService.php';
+require_once dirname(__DIR__).'/repositorios/PagoDAO.php';
 require_once dirname(__DIR__) . '/repositorios/ReprogramacionDAO.php';
 
 require_once dirname(__DIR__) . '/repositorios/AusenciaDAO.php';
@@ -174,6 +175,8 @@ function reprogramarCitaServicio(mysqli $conexion, array $citaOriginal, int $rol
             $cita['estado'] !== $citaOriginal['estado']) {
             throw new DomainException('La cita cambió. Vuelve a consultar sus datos.', 409);
         }
+        $pagoAsociado=pagoCitaDAO($conexion,$citaId,true);
+        if ($pagoAsociado && $pagoAsociado['estado']!=='aprobado') throw new DomainException('No se puede reprogramar una cita cuyo pago no está aprobado.',409);
         $ahora = ahoraReprogramacion();
         if (!in_array($cita['estado'], ['pendiente', 'confirmada'], true) || ($rol === 0 && !puedeReprogramarCitaPaciente($cita, $ahora))) {
             throw new DomainException('Esta cita ya no se puede reprogramar.', 409);

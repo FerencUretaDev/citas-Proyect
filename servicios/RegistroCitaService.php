@@ -1,11 +1,13 @@
 <?php
 require_once __DIR__ . '/ReservaService.php';
+require_once dirname(__DIR__) . '/repositorios/TarifaDAO.php';
+require_once dirname(__DIR__) . '/repositorios/PagoDAO.php';
 
 require_once dirname(__DIR__) .
     '/repositorios/AusenciaDAO.php';
 
 // La transacción y el orden de bloqueo se conservan del flujo original.
-function registrarCita(mysqli $conexion, int $paciente_id, int $doctor_id, string $especialidadSeleccionada, string $fecha, string $hora, string $modalidad, string $motivo, array $opcionesPorClave): array
+function registrarCita(mysqli $conexion, int $paciente_id, int $doctor_id, string $especialidadSeleccionada, string $fecha, string $hora, string $modalidad, string $motivo, array $opcionesPorClave, string $precioMostrado = ""): array
 {
     $mensaje = '';
     $tipo_mensaje = '';
@@ -154,12 +156,25 @@ function registrarCita(mysqli $conexion, int $paciente_id, int $doctor_id, strin
                            INSERTAR CITA
                         ============================= */
 
-                        [$guardada, $codigoError] = insertarReserva($conexion, $paciente_id, $doctor_id, $fecha, $hora, $modalidad, $motivo);
+                        // La tarifa se obtiene del servidor; no se confía en el valor del formulario.
+                        $precioVigente = obtenerTarifaCitaDAO($conexion, $modalidad);
+                        if ($precioVigente === null) {
+                            $conexion->rollback();
+                            return ["La modalidad seleccionada no tiene una tarifa disponible.", "error"];
+                        }
+                        if ($precioMostrado !== $precioVigente) {
+                            $conexion->rollback();
+                            return ["La tarifa cambió o no coincide con el precio vigente. Revisa el nuevo importe antes de confirmar.", "error"];
+                        }
+
+                        [$guardada, $codigoError, $citaId] = insertarReserva($conexion, $paciente_id, $doctor_id, $fecha, $hora, $modalidad, $motivo);
                         if ($guardada) {
 
-                            $conexion->commit();
-                            $mensaje = "✅ Cita registrada correctamente.";
-                            $tipo_mensaje = "success";
+                            $citaId = (int)$citaId;
+                            if ($citaId <= 0) throw new RuntimeException('Identificador de cita no disponible.');
+                            nuevoPagoCitaDAO($conexion, $citaId, $precioVigente);
+                            if (!$conexion->commit()) throw new RuntimeException('No se pudo confirmar la reserva.');
+                            return ["Reserva pendiente de pago.", "success", $citaId];
 
                         } else {
 
@@ -177,7 +192,7 @@ function registrarCita(mysqli $conexion, int $paciente_id, int $doctor_id, strin
                 }
             }
         }
-        } catch (mysqli_sql_exception $error) {
+        } catch (Throwable $error) {
             $conexion->rollback();
             error_log('Error al registrar cita. Código MySQL: ' . $error->getCode());
             $mensaje = in_array($error->getCode(), [1062, 1205, 1213], true)

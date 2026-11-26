@@ -71,6 +71,8 @@ try {
         exit('Esta cita ya no se puede reprogramar.');
     }
 
+    $pagoAsociado=pagoCitaDAO($conexion,$citaId);
+    if ($pagoAsociado && $pagoAsociado['estado']!=='aprobado') {http_response_code(409);exit('Verifica el pago antes de reprogramar esta cita.');}
     [, $opcionesPorClave] = cargarCatalogoEspecialidades($conexion);
     $opciones = opcionesDoctoresReprogramacion($conexion, $cita, $opcionesPorClave);
     $datos = $metodo === 'POST' ? $_POST : $_GET;

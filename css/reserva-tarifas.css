@@ -1,0 +1,51 @@
+/* Extensión visual de la reserva existente; no modifica el diseño global. */
+.reserva-moderna .modalidad-opcion .reserva-tarifa-precio {
+    display: block;
+    margin-top: .45rem;
+    color: #08766e;
+    font-size: 1.08rem;
+    font-weight: 750;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+}
+.reserva-moderna .tarifa-no-disponible {
+    opacity: .68;
+    cursor: not-allowed;
+}
+.reserva-moderna .tarifa-no-disponible .reserva-tarifa-precio,
+.reserva-moderna .reserva-tarifa-error {
+    color: #a12828;
+}
+.reserva-moderna .reserva-tarifa-error {
+    margin: .65rem 0 0;
+    font-size: .88rem;
+}
+.reserva-moderna .reserva-total {
+    display: flex;
+    flex-direction: column;
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: .5rem .9rem;
+    border: 1px solid #b8e3db;
+    border-radius: 10px;
+    background: #effaf7;
+    color: #124d46;
+    line-height: 1.35;
+}
+.reserva-moderna .reserva-total-label,
+.reserva-moderna .reserva-total small {
+    font-size: .78rem;
+}
+.reserva-moderna #reservaTotal {
+    font-size: 1.35rem;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+}
+.reserva-moderna .reserva-resumen {
+    flex-wrap: wrap;
+}
+@media (max-width: 640px) {
+    .reserva-moderna .reserva-total { width: 100%; }
+}

@@ -1,3 +1,9 @@
+<?php
+$modalidadPreferida = $_POST['modalidad'] ?? 'presencial';
+$modalidadSeleccionada = is_string($modalidadPreferida) && isset($tarifas[$modalidadPreferida])
+    ? $modalidadPreferida : (array_key_first($tarifas) ?? '');
+$precioInicial = $tarifas[$modalidadSeleccionada] ?? '';
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -7,6 +13,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
     <link rel="stylesheet" href="css/style.css?v=20261011-responsive">
     <link rel="stylesheet" href="css/reserva-moderna.css?v=1">
+    <link rel="stylesheet" href="css/reserva-tarifas.css?v=1">
 </head>
 <body class="page-reserva reserva-moderna">
 <main class="reserva-shell">
@@ -30,6 +37,7 @@
     <?php endif; ?>
     <form method="POST" id="formCita" aria-labelledby="tituloReserva">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION["csrf_token"], ENT_QUOTES, "UTF-8") ?>">
+        <input type="hidden" name="precio_mostrado" id="precioMostrado" value="<?= htmlspecialchars($precioInicial, ENT_QUOTES, 'UTF-8') ?>">
         <div class="reserva-pasos">
             <section class="reserva-card" aria-labelledby="pasoProfesional">
                 <header class="reserva-step"><span class="reserva-numero" aria-hidden="true">1</span><div><h2 id="pasoProfesional">Elige tu especialista</h2><p>Profesional y modalidad de atención</p></div></header>
@@ -72,11 +80,23 @@ foreach ($doctores as $doctor) {
                 </div>
                 <fieldset class="modalidad-selector" aria-describedby="ayudaModalidad">
                     <legend>Modalidad de atención</legend>
-                    <p id="ayudaModalidad">Elige cómo recibirás la consulta.</p>
+                    <p id="ayudaModalidad">Elige cómo recibirás la consulta y revisa su precio en soles.</p>
                     <div class="modalidad-opciones">
-                        <label class="modalidad-opcion"><input type="radio" name="modalidad" value="presencial" required <?= (($_POST['modalidad'] ?? 'presencial') !== 'virtual') ? 'checked' : '' ?>><span><strong>Presencial</strong><small>En consultorio</small></span></label>
-                        <label class="modalidad-opcion"><input type="radio" name="modalidad" value="virtual" required <?= (($_POST['modalidad'] ?? '') === 'virtual') ? 'checked' : '' ?>><span><strong>Virtual</strong><small>Por videollamada</small></span></label>
+                        <?php foreach (['presencial' => ['Presencial', 'En consultorio'], 'virtual' => ['Virtual', 'Por videollamada']] as $modo => [$nombre, $descripcion]): ?>
+                            <?php $precio = $tarifas[$modo] ?? ''; ?>
+                            <label class="modalidad-opcion<?= $precio === '' ? ' tarifa-no-disponible' : '' ?>">
+                                <input type="radio" name="modalidad" value="<?= $modo ?>" data-precio="<?= htmlspecialchars($precio, ENT_QUOTES, 'UTF-8') ?>" required <?= $modalidadSeleccionada === $modo ? 'checked' : '' ?> <?= $precio === '' ? 'disabled' : '' ?>>
+                                <span>
+                                    <strong><?= $nombre ?></strong>
+                                    <small><?= $descripcion ?></small>
+                                    <strong class="reserva-tarifa-precio"><?= $precio === '' ? 'No disponible' : 'S/ ' . htmlspecialchars($precio, ENT_QUOTES, 'UTF-8') ?></strong>
+                                </span>
+                            </label>
+                        <?php endforeach; ?>
                     </div>
+                    <?php if (!$tarifas): ?>
+                        <p class="reserva-tarifa-error" role="alert">No hay tarifas disponibles en este momento. No podrás registrar una cita hasta que estén habilitadas.</p>
+                    <?php endif; ?>
                 </fieldset>
                 <div class="info-doctor" id="infoDoctor">
                     <div><span>Especialidad</span><strong id="especialidadDoctor"></strong></div>
@@ -111,17 +131,22 @@ foreach ($doctores as $doctor) {
                 <h2 id="tituloResumen">Resumen de tu cita</h2>
                 <p id="reservaResumen" aria-live="polite">Completa los tres pasos para confirmar.</p>
             </div>
+            <div class="reserva-total" aria-live="polite" aria-atomic="true">
+                <span class="reserva-total-label">Costo de consulta</span>
+                <strong id="reservaTotal"><?= $precioInicial === '' ? 'No disponible' : 'S/ ' . htmlspecialchars($precioInicial, ENT_QUOTES, 'UTF-8') ?></strong>
+                <small>Tarifa en PEN</small>
+            </div>
             <div class="reserva-botones">
                 <a href="panel" class="reserva-cancelar">Cancelar</a>
-                <button type="submit" class="reserva-confirmar" id="btnGuardar" disabled>Confirmar cita <span aria-hidden="true">→</span></button>
+                <button type="submit" class="reserva-confirmar" id="btnGuardar" disabled>Confirmar cita y pagar <span aria-hidden="true">→</span></button>
             </div>
         </section>
         <noscript><p class="reserva-aviso error">Activa JavaScript para consultar los horarios disponibles.</p></noscript>
     </form>
-    <p class="reserva-pie">La disponibilidad se verifica nuevamente al registrar tu cita.</p>
+    <p class="reserva-pie">La disponibilidad y la tarifa se verifican en el servidor. Continuarás a Mercado Pago en modo de prueba.</p>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
-<script src="js/reserva-moderna.js?v=2-reglas" defer></script>
+<script src="js/reserva-moderna.js?v=4-pagos" defer></script>
 </body>
 </html>

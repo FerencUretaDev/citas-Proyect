@@ -1,5 +1,6 @@
 <?php
 session_start();
+date_default_timezone_set('America/Lima');
 include dirname(__DIR__) . "/config/Conexion.php";
 require_once dirname(__DIR__) . "/middlewares/SesionActiva.php";
 verificarPerfilActivo($conexion);
@@ -50,6 +51,7 @@ $paciente_id = $paciente["id"];
 require_once dirname(__DIR__) . '/servicios/EspecialidadService.php';
 [$catalogo, $opcionesPorClave] = cargarCatalogoEspecialidades($conexion);
 require_once dirname(__DIR__) . '/servicios/ReservaService.php';
+require_once dirname(__DIR__) . '/repositorios/TarifaDAO.php';
 
 // Consulta anticipada: solo las citas del paciente autenticado, sin nombres ni DNI.
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['reglas'] ?? '') === '1') {
@@ -83,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['reglas'] ?? '') === '1') {
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    if (!hash_equals($_SESSION["csrf_token"], $_POST["csrf_token"] ?? "")) {
+    if (!is_string($_POST["csrf_token"] ?? null) || !hash_equals($_SESSION["csrf_token"], $_POST["csrf_token"])) {
         http_response_code(403);
         die("Solicitud no válida.");
     }
@@ -91,13 +93,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $doctor_id = intval($_POST["doctor_id"] ?? 0);
     $especialidadSeleccionada = (is_string($_POST["especialidad_id"] ?? null) ? trim($_POST["especialidad_id"]) : "");
     $doctorSeleccionado = $doctor_id;
-    $fecha = $_POST["fecha"] ?? "";
-    $hora = $_POST["hora"] ?? "";
-    $modalidad = $_POST["modalidad"] ?? "";
-    $motivo = trim($_POST["motivo"] ?? "");
-    $fechaValidada = DateTime::createFromFormat("!Y-m-d", $fecha);
+    $fecha = is_string($_POST["fecha"] ?? null) ? $_POST["fecha"] : "";
+    $hora = is_string($_POST["hora"] ?? null) ? $_POST["hora"] : "";
+    $modalidad = is_string($_POST["modalidad"] ?? null) ? $_POST["modalidad"] : "";
+    $motivo = is_string($_POST["motivo"] ?? null) ? trim($_POST["motivo"]) : "";
+    // Solo representa el precio visto por el paciente; nunca es el importe autorizado.
+    $precioMostrado = is_string($_POST["precio_mostrado"] ?? null) ? $_POST["precio_mostrado"] : "";
+    $fechaValidada = preg_match('/\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z/', $fecha) ? DateTime::createFromFormat("!Y-m-d", $fecha) : false;
     $erroresFecha = DateTime::getLastErrors();
-    $horaValidada = DateTime::createFromFormat("!H:i:s", $hora);
+    $horaValidada = preg_match('/\A[0-9]{2}:[0-9]{2}:[0-9]{2}\z/', $hora) ? DateTime::createFromFormat("!H:i:s", $hora) : false;
     $erroresHora = DateTime::getLastErrors();
 
     $fechaValida = $fechaValidada !== false &&
@@ -113,10 +117,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $mensaje = "Selecciona un doctor, modalidad, fecha y horario válidos.";
         $tipo_mensaje = "error";
 
+    } elseif (!preg_match('/\A[0-9]{1,8}\.[0-9]{2}\z/', $precioMostrado)) {
+        $mensaje = "No se pudo verificar el precio mostrado. Revisa la tarifa y vuelve a seleccionar tu cita.";
+        $tipo_mensaje = "error";
     } else {
 
         require_once dirname(__DIR__) . '/servicios/RegistroCitaService.php';
-        [$mensaje, $tipo_mensaje] = registrarCita($conexion, (int)$paciente_id, $doctor_id, $especialidadSeleccionada, $fecha, $hora, $modalidad, $motivo, $opcionesPorClave);
+        $resultadoReserva = registrarCita($conexion, (int)$paciente_id, $doctor_id, $especialidadSeleccionada, $fecha, $hora, $modalidad, $motivo, $opcionesPorClave, $precioMostrado);
+        [$mensaje, $tipo_mensaje] = $resultadoReserva;
+        if (isset($resultadoReserva[2])) {
+            $citaId=(int)$resultadoReserva[2];
+            require_once dirname(__DIR__).'/servicios/PagoService.php';
+            try {
+                [$aviso,$url]=gestionarPago($conexion,$citaId,0,(int)$usuario_id,'crear');
+                if ($url) {header('Location: '.$url,true,303);exit;}
+                $_SESSION['mensaje_pago']=$aviso;
+            } catch (Throwable $e) {
+                error_log('Creación de orden: '.get_class($e).' / '.$e->getCode());
+                $_SESSION['mensaje_pago']='Reserva guardada. No se pudo abrir Checkout. Consulta esta misma operación; no crees otra cita.';
+            }
+            header('Location: pago_cita.php?id='.$citaId,true,303);exit;
+        }
     }
 }
 
@@ -148,5 +169,13 @@ while ($doctor = $resultDoctores->fetch_assoc()) {
     }
 }
 
+
+// Volver a leer las tarifas tras un POST para mostrar el precio vigente.
+$tarifas = [];
+try {
+    $tarifas = listarTarifasCitasDAO($conexion);
+} catch (mysqli_sql_exception $error) {
+    error_log('Error al consultar tarifas de citas: ' . $error->getCode());
+}
 
 require dirname(__DIR__) . "/vistas/sacar_cita.php";

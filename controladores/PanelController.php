@@ -124,6 +124,7 @@ if ($rol == 2) {
     $sql = "
         SELECT
             c.id,
+            (SELECT g.estado FROM pagos g WHERE g.cita_id=c.id) AS pago_estado,
             c.fecha,
             c.hora,
             c.modalidad,
@@ -247,6 +248,7 @@ if ($rol == 1) {
     $sql = "
         SELECT
             c.id,
+            (SELECT g.estado FROM pagos g WHERE g.cita_id=c.id) AS pago_estado,
             c.fecha,
             c.hora,
             c.modalidad,
@@ -366,6 +368,7 @@ if ($rol == 0) {
     $sql = "
         SELECT
             c.id,
+            (SELECT g.estado FROM pagos g WHERE g.cita_id=c.id) AS pago_estado,
             c.fecha,
             c.hora,
             c.modalidad,

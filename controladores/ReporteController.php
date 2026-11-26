@@ -11,12 +11,13 @@ if (empty($_SESSION["csrf_token"])) {
     $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
 }
 
+require_once dirname(__DIR__) . '/repositorios/DashboardPagoDAO.php';
 $rol = 2;
 $paginaActiva = "reportes";
 
-$fecha_inicio = $_GET["fecha_inicio"] ?? "";
-$fecha_fin = $_GET["fecha_fin"] ?? "";
-$dni = trim($_GET["dni"] ?? "");
+$fecha_inicio = fechaDashboard($_GET["fecha_inicio"] ?? '');
+$fecha_fin = fechaDashboard($_GET["fecha_fin"] ?? '');
+$dni = is_string($_GET["dni"] ?? null) ? trim($_GET["dni"]) : "";
 $estadoSeleccionado = $_GET["estado"] ?? "";
 $etiquetasEstado = [
     "pendiente" => "Pendiente",
@@ -259,4 +260,10 @@ while ($fila = $resultMes->fetch_assoc()) {
 
 
 
+$filtrosPago = filtrosDashboardPago($_GET);
+$analiticaPago = analiticaDashboardPago($conexion, $filtrosPago);
+if (($_GET['exportar'] ?? '') === 'pagos_csv') {
+    exportarDashboardPago($conexion, $filtrosPago);
+    exit;
+}
 require dirname(__DIR__) . "/vistas/reporte_citas.php";

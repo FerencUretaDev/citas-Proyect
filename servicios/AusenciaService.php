@@ -183,6 +183,10 @@ function registrarAusenciaServicio(
             );
         }
 
+        // Evitar crear ausencias sobre citas con pago activo, hasta disponer de reembolsos.
+        $s=$conexion->prepare("SELECT c.id FROM citas c JOIN pagos g ON g.cita_id=c.id WHERE c.doctor_id=? AND c.fecha BETWEEN ? AND ? AND c.estado IN ('pendiente','confirmada') LIMIT 1 FOR UPDATE");
+        $s->execute([$doctorId,$fechaInicio,$fechaFin]);$conflicto=(bool)$s->get_result()->fetch_assoc();$s->close();
+        if($conflicto)throw new DomainException('Existen citas con pago en ese periodo. Revisa las reservas antes de registrar la ausencia.',409);
         $ausenciaId = insertarAusenciaDAO(
             $conexion,
             $doctorId,

@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function actualizarResumen() {
         const opcion = doctor.options[doctor.selectedIndex];
         const modalidad = form.querySelector('input[name="modalidad"]:checked');
+        const precio = modalidad && !modalidad.disabled && /^\d{1,8}\.\d{2}$/.test(modalidad.dataset.precio || '') && modalidad.dataset.precio !== '0.00' ? modalidad.dataset.precio : '';
+        $('precioMostrado').value = precio;
+        $('reservaTotal').textContent = precio ? 'S/ ' + precio : 'No disponible';
         const partes = [];
         if (especialidad.value) partes.push(especialidad.value);
         if (doctor.value && opcion) partes.push(opcion.textContent.trim().replace(/\s+/g,' ').split(' - ')[0]);
@@ -25,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (hora.value) partes.push(hora.value.slice(0,5));
         $('reservaResumen').textContent = doctor.value && fecha.value && hora.value ? partes.join(' · ') : (partes.length ? partes.join(' · ') + ' · Completa los datos pendientes.' : 'Completa los tres pasos para confirmar.');
         $('fechaElegida').textContent = fecha.value ? 'Fecha elegida: ' + fechaTexto(fecha.value) : 'Selecciona un día para ver los horarios.';
-        confirmar.disabled = enviando || !especialidad.value || !doctor.value || !fecha.value || !turnos.has(hora.value);
+        confirmar.disabled = enviando || !precio || !especialidad.value || !doctor.value || !fecha.value || !turnos.has(hora.value);
     }
     function estado(texto, tipo = '') {
         mensaje.textContent = texto;
@@ -123,9 +126,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('.reserva-leyenda').hidden=true;
     }
     form.addEventListener('submit', e => {
-        if (confirmar.disabled || enviando || !turnos.has(hora.value)) {e.preventDefault(); return;}
-        enviando=true; confirmar.disabled=true; confirmar.textContent='Registrando cita…';
+        if (confirmar.disabled || enviando || !$('precioMostrado').value || !turnos.has(hora.value)) {e.preventDefault(); return;}
+        enviando=true; confirmar.disabled=true; confirmar.textContent='Preparando pago…';
     });
-    window.addEventListener('pageshow', e => {if(e.persisted){enviando=false; confirmar.innerHTML='Confirmar cita <span aria-hidden="true">→</span>'; cargarHorarios();}});
+    window.addEventListener('pageshow', e => {if(e.persisted){enviando=false; confirmar.innerHTML='Confirmar cita y pagar <span aria-hidden="true">→</span>'; cargarHorarios();}});
     filtrarDoctores(false);
 });

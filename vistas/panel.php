@@ -284,7 +284,7 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
                 <a href="reporte_citas"
                    class="boton">
 
-                    📊 Ver reporte completo
+                    📊 Ver Dashboard
 
                 </a>
 
@@ -434,7 +434,11 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
                         </td>
 
                         <td>
-                            <?php $opcionesEstado = $transicionesEstadoCita[$fila["estado"]] ?? []; ?>
+                            <?php $opcionesEstado = $transicionesEstadoCita[$fila["estado"]] ?? []; $estadoPago = $fila['pago_estado'] ?? null;
+                            if ($estadoPago !== null) { $opcionesEstado = $estadoPago === 'aprobado' ? array_values(array_intersect($opcionesEstado,['atendida'])) : []; ?>
+                                <div>Pago: <?= htmlspecialchars(ucfirst(str_replace('_',' ',$estadoPago))) ?></div>
+                                <?php if ($rol===2): ?><a class="reprogramar-link" href="pago_cita.php?id=<?= (int)$fila['id'] ?>">Consultar pago</a><?php endif; ?>
+                            <?php } ?>
                             <?php if ($opcionesEstado): ?>
                                 <form method="POST" action="actualizar_cita" class="form-estado-cita">
                                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION["csrf_token"], ENT_QUOTES, "UTF-8"); ?>">
@@ -451,7 +455,7 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
                             <?php else: ?>
                                 <span class="accion-finalizada">Sin cambios</span>
                             <?php endif; ?>
-                            <?php if (in_array($fila["estado"], ["pendiente", "confirmada"], true)): ?>
+                            <?php if (in_array($fila["estado"], ["pendiente", "confirmada"], true) && (($fila["pago_estado"] ?? null) === null || $fila["pago_estado"] === "aprobado")): ?>
                                 <a class="reprogramar-link" href="reprogramar_cita?id=<?php echo (int)$fila["id"]; ?>&origen=panel">Reprogramar</a>
                             <?php endif; ?>
                         </td>
@@ -738,7 +742,11 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
                         </td>
 
                         <td>
-                            <?php $opcionesEstado = $transicionesEstadoCita[$fila["estado"]] ?? []; ?>
+                            <?php $opcionesEstado = $transicionesEstadoCita[$fila["estado"]] ?? []; $estadoPago = $fila['pago_estado'] ?? null;
+                            if ($estadoPago !== null) { $opcionesEstado = $estadoPago === 'aprobado' ? array_values(array_intersect($opcionesEstado,['atendida'])) : []; ?>
+                                <div>Pago: <?= htmlspecialchars(ucfirst(str_replace('_',' ',$estadoPago))) ?></div>
+                                <?php if ($rol===2): ?><a class="reprogramar-link" href="pago_cita.php?id=<?= (int)$fila['id'] ?>">Consultar pago</a><?php endif; ?>
+                            <?php } ?>
                             <?php if ($opcionesEstado): ?>
                                 <form method="POST" action="actualizar_cita" class="form-estado-cita">
                                     <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION["csrf_token"], ENT_QUOTES, "UTF-8"); ?>">
@@ -917,7 +925,7 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
                     foreach ($citas as $cita) {
 
                         if (
-                            $cita["estado"] != "cancelada"
+                            $cita["estado"] != "cancelada" && (($cita["pago_estado"] ?? null) === null || $cita["pago_estado"] === "aprobado")
                             &&
                             $cita["fecha"] >= date("Y-m-d")
                         ) {
@@ -1096,7 +1104,11 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
                         </td>
 
                         <td>
-                            <?php if (puedeCancelarCitaPaciente($fila)): ?>
+                            <?php if (($fila['pago_estado'] ?? null) !== null): ?>
+                                <div>Pago: <?= htmlspecialchars(ucfirst(str_replace('_',' ',$fila['pago_estado']))) ?></div>
+                                <a class="reprogramar-link" href="pago_cita.php?id=<?= (int)$fila['id'] ?>"><?= $fila['pago_estado']==='aprobado'?'Ver pago':'Consultar / pagar' ?></a>
+                                <?php if ($fila['pago_estado']==='aprobado' && puedeCancelarCitaPaciente($fila)): ?><a class="reprogramar-link" href="reprogramar_cita?id=<?= (int)$fila['id'] ?>">Reprogramar cita</a><?php endif; ?>
+                            <?php elseif (puedeCancelarCitaPaciente($fila)): ?>
                                 <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
                                     <a href="reprogramar_cita?id=<?php echo (int)$fila['id']; ?>&amp;origen=panel"
                                        style="display:inline-block; background:#2563eb; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:13px; line-height:1.4; white-space:nowrap;">

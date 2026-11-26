@@ -144,6 +144,11 @@ if ($rol === 0) {
         die("La transición de estado no está permitida.");
     }
 
+    require_once dirname(__DIR__).'/repositorios/PagoDAO.php';
+    $pagoAsociado=pagoCitaDAO($conexion,$cita_id,true);
+    if ($pagoAsociado && $estadoActual !== $estado && ($estado === 'cancelada' || $pagoAsociado['estado'] !== 'aprobado')) {
+        $conexion->rollback(); http_response_code(409); exit('Gestiona primero el pago desde el panel. Las citas pagadas requieren revisión antes de cancelar.');
+    }
     if ($estadoActual === $estado) {
         $conexion->commit();
         header("Location: " . $destino);

@@ -23,7 +23,7 @@ if (!is_string($estadoSeleccionado) || !array_key_exists($estadoSeleccionado, $e
 }
 
 $sqlCitas = "
-    SELECT c.id, c.fecha, c.hora, c.modalidad, c.motivo, c.estado,
+    SELECT c.id, (SELECT g.estado FROM pagos g WHERE g.cita_id=c.id) AS pago_estado, c.fecha, c.hora, c.modalidad, c.motivo, c.estado,
            p.nombres AS paciente_nombres, p.apellidos AS paciente_apellidos, p.dni,
            d.nombres AS doctor_nombres, d.apellidos AS doctor_apellidos, d.especialidad
     FROM citas c

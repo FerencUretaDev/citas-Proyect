@@ -17,7 +17,7 @@
         </div>
         <nav class="citas-admin-nav" aria-label="Navegación administrativa">
             <a href="panel" class="boton boton-limpiar">Panel</a>
-            <a href="reporte_citas" class="boton">Reportes</a>
+            <a href="reporte_citas" class="boton">Dashboard</a>
         </nav>
     </div>
 
@@ -79,7 +79,11 @@
                             <td><?php echo htmlspecialchars($cita["motivo"] ?: "Sin motivo", ENT_QUOTES, "UTF-8"); ?></td>
                             <td><span class="estado estado-<?php echo htmlspecialchars($cita["estado"], ENT_QUOTES, "UTF-8"); ?>"><?php echo htmlspecialchars($etiquetasEstado[$cita["estado"]] ?? $cita["estado"], ENT_QUOTES, "UTF-8"); ?></span></td>
                             <td class="citas-admin-actions">
-                                <?php if (!empty($transiciones[$cita["estado"]])): ?>
+                                <?php $accionesEstado=$transiciones[$cita['estado']]??[]; $pagoEstado=$cita['pago_estado']??null;
+                                if($pagoEstado!==null){$accionesEstado=$pagoEstado==='aprobado'?array_values(array_intersect($accionesEstado,['atendida'])):[]; ?>
+                                    <div>Pago: <?= htmlspecialchars(ucfirst(str_replace('_',' ',$pagoEstado))) ?></div><a class="reprogramar-link" href="pago_cita.php?id=<?= (int)$cita['id'] ?>">Consultar pago</a>
+                                <?php } ?>
+                                <?php if ($accionesEstado): ?>
                                     <form method="POST" action="actualizar_cita" class="form-estado-cita">
                                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION["csrf_token"], ENT_QUOTES, "UTF-8"); ?>">
                                         <input type="hidden" name="cita_id" value="<?php echo (int)$cita["id"]; ?>">
@@ -87,7 +91,7 @@
                                         <label class="sr-only" for="estado-cita-admin-<?php echo (int)$cita["id"]; ?>">Nuevo estado</label>
                                         <select id="estado-cita-admin-<?php echo (int)$cita["id"]; ?>" name="estado" required>
                                             <option value="" selected disabled>Cambiar estado</option>
-                                            <?php foreach ($transiciones[$cita["estado"]] as $nuevoEstado): ?>
+                                            <?php foreach ($accionesEstado as $nuevoEstado): ?>
                                                 <option value="<?php echo htmlspecialchars($nuevoEstado, ENT_QUOTES, "UTF-8"); ?>"><?php echo htmlspecialchars($etiquetasEstado[$nuevoEstado], ENT_QUOTES, "UTF-8"); ?></option>
                                             <?php endforeach; ?>
                                         </select>
@@ -96,7 +100,7 @@
                                 <?php else: ?>
                                     <span class="accion-finalizada">Sin cambios</span>
                                 <?php endif; ?>
-                                <?php if (in_array($cita["estado"], ["pendiente", "confirmada"], true)): ?>
+                                <?php if (in_array($cita["estado"], ["pendiente", "confirmada"], true) && ($pagoEstado===null || $pagoEstado==='aprobado')): ?>
                                     <a class="reprogramar-link" href="reprogramar_cita?id=<?php echo (int)$cita["id"]; ?>&origen=citas">Reprogramar</a>
                                 <?php endif; ?>
                             </td>
