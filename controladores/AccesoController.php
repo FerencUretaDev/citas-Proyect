@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 include dirname(__DIR__) . "/config/Conexion.php";
 require_once dirname(__DIR__) . "/servicios/AutenticacionService.php";
 
@@ -16,9 +17,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_SESSION["id"] = $datos["id"];
         $_SESSION["usuario"] = $datos["usuario"];
         $_SESSION["rol"] = (int)$datos["rol"];
+        auditar($conexion,"seguridad","iniciar_sesion","exitoso","usuario",(int)$datos["id"]);
         header("Location: panel");
         exit;
     }
+    auditar($conexion,"seguridad","iniciar_sesion","fallido",null,null,[]);
     $mensaje = "Usuario o contraseña incorrectos";
 }
 

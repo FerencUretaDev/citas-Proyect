@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 
 // Solo administradores
 if (!isset($_SESSION["id"]) ||
@@ -227,6 +228,8 @@ try {
             "Error de Java. Codigo: " . $codigo
         );
     }
+
+    if ($dbAud=auditoriaConexionOpcional()) { auditar($dbAud,"reportes","generar_excel_java"); $dbAud->close(); }
 
     // Descargar archivo Excel
     header(

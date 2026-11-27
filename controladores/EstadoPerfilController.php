@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 if (!isset($_SESSION['id']) || !in_array($_SESSION['rol'] ?? null, [2, '2'], true)) {
     http_response_code(403);
     exit('Acceso denegado.');
@@ -39,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new DomainException('Escribe un motivo de hasta 160 caracteres.');
         }
         $modelo->cambiarEstado($id, $accion === 'reactivar', $motivo);
+        auditar($conexion,$tipo==='doctor'?'doctores':'pacientes',$accion==='reactivar'?'reactivar':($tipo==='doctor'?'desactivar':'archivar'),'exitoso',$tipo,$id);
         $_SESSION['mensaje_' . $tipo] = $accion === 'reactivar' ? 'Perfil reactivado.' :
             ($tipo === 'doctor' ? 'Doctor desactivado.' : 'Paciente archivado.');
         header('Location: ' . $paginaActiva . ($accion === 'baja' ? '?vista=inactivos' : ''), true, 303);

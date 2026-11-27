@@ -111,6 +111,8 @@ $conexion->query("SET time_zone = '-05:00'");
         . $e->getCode()
     );
 
+    if (($conexionOpcionalAuditoria ?? false) === true) { throw $e; }
+
     http_response_code(500);
 
     exit("No se pudo conectar con la base de datos.");

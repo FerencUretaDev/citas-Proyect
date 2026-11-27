@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 date_default_timezone_set('America/Lima');
 include dirname(__DIR__) . "/config/Conexion.php";
 require_once dirname(__DIR__) . "/middlewares/SesionActiva.php";
@@ -125,14 +126,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         require_once dirname(__DIR__) . '/servicios/RegistroCitaService.php';
         $resultadoReserva = registrarCita($conexion, (int)$paciente_id, $doctor_id, $especialidadSeleccionada, $fecha, $hora, $modalidad, $motivo, $opcionesPorClave, $precioMostrado);
         [$mensaje, $tipo_mensaje] = $resultadoReserva;
+        if (!isset($resultadoReserva[2])) auditar($conexion,"citas","reservar","fallido");
         if (isset($resultadoReserva[2])) {
             $citaId=(int)$resultadoReserva[2];
+            auditar($conexion,"citas","reservar","exitoso","cita",$citaId);
             require_once dirname(__DIR__).'/servicios/PagoService.php';
             try {
                 [$aviso,$url]=gestionarPago($conexion,$citaId,0,(int)$usuario_id,'crear');
                 if ($url) {header('Location: '.$url,true,303);exit;}
                 $_SESSION['mensaje_pago']=$aviso;
             } catch (Throwable $e) {
+                auditar($conexion,'pagos','crear_orden','fallido','cita',$citaId);
                 error_log('Creación de orden: '.get_class($e).' / '.$e->getCode());
                 $_SESSION['mensaje_pago']='Reserva guardada. No se pudo abrir Checkout. Consulta esta misma operación; no crees otra cita.';
             }

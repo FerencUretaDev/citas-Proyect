@@ -1,4 +1,5 @@
 <?php
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 function verificarPerfilActivo(mysqli $conexion, bool $json = false): void
 {
     $rol = $_SESSION['rol'] ?? null;
@@ -10,6 +11,7 @@ function verificarPerfilActivo(mysqli $conexion, bool $json = false): void
     $stmt->bind_param('i', $_SESSION['id']);
     $stmt->execute();
     if (!$stmt->get_result()->fetch_row()) {
+        auditar($conexion,"seguridad","perfil_inactivo","denegado");
         $_SESSION = [];
         session_destroy();
         http_response_code(403);

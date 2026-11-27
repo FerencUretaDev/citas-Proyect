@@ -1,6 +1,7 @@
 <?php
 
 session_start();
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 
 header("Cache-Control: no-store, private");
 
@@ -87,7 +88,7 @@ if ($metodo === "POST") {
 
         if ($accion === "registrar") {
 
-            registrarAusenciaServicio(
+            $idAuditoria = registrarAusenciaServicio(
                 $conexion,
                 $rol,
                 $usuarioId,
@@ -98,6 +99,7 @@ if ($metodo === "POST") {
                 entradaAusencia($_POST, "observaciones")
             );
 
+            auditar($conexion,"ausencias","registrar","exitoso","ausencia",$idAuditoria);
             $_SESSION["mensaje_ausencia"] = [
                 "tipo" => "success",
                 "texto" => "Ausencia registrada correctamente."
@@ -113,6 +115,7 @@ if ($metodo === "POST") {
                 identificadorAusencia($_POST, "doctor_id")
             );
 
+            auditar($conexion,"ausencias","cancelar","exitoso","ausencia",identificadorAusencia($_POST,"ausencia_id"));
             $_SESSION["mensaje_ausencia"] = [
                 "tipo" => "success",
                 "texto" => "Ausencia cancelada correctamente."

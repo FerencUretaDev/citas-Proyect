@@ -1,6 +1,7 @@
 <?php
 
 session_start();
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 	header("Allow: POST");
@@ -13,6 +14,7 @@ if (empty($_SESSION["csrf_token"]) || !hash_equals($_SESSION["csrf_token"], $_PO
 	exit("Solicitud no válida.");
 }
 
+$actorAuditoria = $_SESSION;
 $_SESSION = [];
 
 if (ini_get("session.use_cookies")) {
@@ -21,6 +23,10 @@ if (ini_get("session.use_cookies")) {
 }
 
 session_destroy();
+if (auditoriaId($actorAuditoria["id"] ?? null)!==null && ($dbAud=auditoriaConexionOpcional())) {
+    auditar($dbAud,"seguridad","cerrar_sesion","exitoso","usuario",auditoriaId($actorAuditoria["id"]),$actorAuditoria);
+    $dbAud->close();
+}
 
 header("Location: index.php");
 exit;

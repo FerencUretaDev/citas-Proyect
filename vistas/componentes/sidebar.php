@@ -20,7 +20,8 @@ $menusPorRol = [
     ["citas", "citas_admin", "📅", "Citas"],
     ["pacientes", "pacientes", "👥", "Pacientes"],
     ["doctores", "doctores", "👨‍⚕️", "Doctores"],
-    ["ausencias_doctores", "ausencias_doctores", "📆", "Ausencias"]
+    ["ausencias_doctores", "ausencias_doctores", "📆", "Ausencias"],
+    ["auditoria", "auditoria.php", "🛡", "Auditoría"]
     ]
 ];
 

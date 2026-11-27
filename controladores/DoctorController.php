@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 include dirname(__DIR__) . "/config/Conexion.php";
 require_once dirname(__DIR__) . "/repositorios/DirectorioDAO.php";
 require_once dirname(__DIR__) . "/servicios/UsuarioService.php";
@@ -137,12 +138,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $stmtDoctor->bind_param("issssssssss", $usuarioId, $nombres, $apellidos, $cmp, $especialidad, $telefono, $correo, $horaInicio, $horaFin, $refrigerioInicio, $refrigerioFin);
             }
             $stmtDoctor->execute();
+            $idAuditoria = !$editando ? (int)$stmtDoctor->insert_id : (int)$doctorId;
             $stmtDoctor->close();
 
             if ($editando && $password !== "") {
                 actualizarPasswordFichaDirectorio($conexion, $doctorId, 1, password_hash($password, PASSWORD_DEFAULT));
             }
             $conexion->commit();
+            auditar($conexion,"doctores",!$editando ? "registrar" : "editar","exitoso","doctor",$idAuditoria);
+            if ($editando && $password !== "") auditar($conexion,"doctores","cambiar_password","exitoso","doctor",$idAuditoria);
             $_SESSION["mensaje_doctor"] = $editando
                 ? ($password !== "" ? "Datos y contraseña del doctor actualizados correctamente." : "Datos del doctor actualizados.")
                 : "Doctor registrado correctamente.";

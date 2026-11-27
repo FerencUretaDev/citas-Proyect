@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/MercadoPagoService.php';
+require_once __DIR__.'/AuditoriaService.php';
 require_once dirname(__DIR__).'/repositorios/PagoDAO.php';
 require_once dirname(__DIR__).'/repositorios/AusenciaDAO.php';
 function ahoraPago(): string {return (new DateTimeImmutable('now',new DateTimeZone('America/Lima')))->format('Y-m-d H:i:s');}
@@ -15,7 +16,7 @@ function gestionarPago(mysqli $db,int $citaId,int $rol,int $usuario,string $acci
         if(!$actual||(int)$actual['doctor_id']!==(int)$c['doctor_id']||!pagoAutorizado($db,$actual,$rol,$usuario))throw new DomainException('La cita cambió; vuelve a consultar.');
         $p=pagoCitaDAO($db,$citaId,true);
         if(!$p||$p['ambiente']!=='test'||$p['proveedor']!=='mercadopago')throw new DomainException('No hay un pago de prueba asociado.');
-        $id=(int)$p['id'];$orden=$p['id_orden_mp'];
+        $id=(int)$p['id'];$orden=$p['id_orden_mp'];$ordenNueva=false;
         if($accion==='crear'){
             if($rol!==0||$actual['estado']!=='pendiente'||!in_array($p['estado'],['pendiente','rechazado','en_proceso'],true)||$actual['fecha'].' '.$actual['hora']<=ahoraPago()||!$doctor||!(int)$doctor['activo']||doctorTieneAusenciaDAO($db,(int)$actual['doctor_id'],$actual['fecha'],true))throw new DomainException('No se puede iniciar el pago para esta cita.');
             if($orden===null){
@@ -25,7 +26,7 @@ function gestionarPago(mysqli $db,int $citaId,int $rol,int $usuario,string $acci
                 $d=mpCrearOrden($p);
                 if(!mpCoincideOrden($d,$p))throw new RuntimeException('Orden no coincide o no es de prueba.');
                 $orden=$d['id'];$url=mpUrlCheckout($d['checkout_url']??null);
-                guardarOrdenPagoDAO($db,$id,$orden,$url);$p['id_orden_mp']=$orden;$p['url_checkout']=$url;
+                guardarOrdenPagoDAO($db,$id,$orden,$url);$ordenNueva=true;$p['id_orden_mp']=$orden;$p['url_checkout']=$url;
             } else {$d=mpConsultarOrden($orden);}
         } else {
             if($orden===null)throw new DomainException('No hay orden verificable. No se liberará el turno si hubo una solicitud incierta.');
@@ -51,6 +52,14 @@ function gestionarPago(mysqli $db,int $citaId,int $rol,int $usuario,string $acci
         elseif($p['fecha_pago']!==null&&$estado!=='aprobado'){$mensaje='El estado financiero cambió. Requiere revisión administrativa.';}
         if($accion==='crear'&&$estado==='pendiente'&&$actual['estado']==='pendiente'){$redirect=mpUrlCheckout($d['checkout_url']??$p['url_checkout']);if($redirect===null)$mensaje='Orden creada, pero falta una URL válida. Consulta el pago.';}
         actualizarPagoDAO($db,$id,$estado,$status,$detalle,$idPago,$fecha);
-        $db->commit();return [$mensaje,$redirect];
+        $db->commit();
+        $actorAud=['id'=>$usuario,'rol'=>$rol];
+        if($accion==='crear' && $ordenNueva) auditar($db,'pagos','crear_orden','exitoso','cita',$citaId,$actorAud);
+        elseif(in_array($accion,['crear','verificar'],true)) auditar($db,'pagos','verificar','exitoso','cita',$citaId,$actorAud);
+        elseif($accion==='cancelar') auditar($db,'pagos','cancelar',$estado==='cancelado'?'exitoso':'fallido','cita',$citaId,$actorAud);
+        if($estado!==$p['estado']) auditar($db,'pagos',$estado==='aprobado'?'acreditar':'estado_'.$estado,'exitoso','cita',$citaId,$actorAud);
+        if($estado==='aprobado'&&$actual['estado']==='pendiente') auditar($db,'citas','confirmar','exitoso','cita',$citaId,$actorAud);
+        if($estado==='cancelado'&&$actual['estado']==='pendiente'&&$p['estado']!=='aprobado'&&$p['fecha_pago']===null) auditar($db,'citas','cancelar','exitoso','cita',$citaId,$actorAud);
+        return [$mensaje,$redirect];
     } catch(Throwable $e){$db->rollback();throw $e;}
 }

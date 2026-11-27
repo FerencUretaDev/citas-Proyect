@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 include dirname(__DIR__) . "/config/Conexion.php";
 
 if (!isset($_SESSION["id"]) || $_SESSION["rol"] != 2) {
@@ -131,6 +132,7 @@ if (($_GET["exportar"] ?? "") === "excel") {
     }
 
     fclose($salida);
+    auditar($conexion,"reportes","exportar_citas_csv");
     exit;
 }
 
@@ -264,6 +266,7 @@ $filtrosPago = filtrosDashboardPago($_GET);
 $analiticaPago = analiticaDashboardPago($conexion, $filtrosPago);
 if (($_GET['exportar'] ?? '') === 'pagos_csv') {
     exportarDashboardPago($conexion, $filtrosPago);
+    auditar($conexion,"reportes","exportar_pagos_csv");
     exit;
 }
 require dirname(__DIR__) . "/vistas/reporte_citas.php";

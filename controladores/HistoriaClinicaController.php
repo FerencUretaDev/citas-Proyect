@@ -1,8 +1,9 @@
 <?php
 session_start();
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 header('Cache-Control: no-store, private');
 header('Referrer-Policy: no-referrer');
-if(!isset($_SESSION['id'],$_SESSION['rol'])||!in_array($_SESSION['rol'],[0,1,'0','1'],true)){http_response_code(403);exit('Acceso denegado.');}
+if(!isset($_SESSION['id'],$_SESSION['rol'])||!in_array($_SESSION['rol'],[0,1,'0','1'],true)){if($dbAud=auditoriaConexionOpcional()) auditar($dbAud,'historia_clinica','acceder','denegado','cita',auditoriaId($_GET['id']??null));http_response_code(403);exit('Acceso denegado.');}
 require dirname(__DIR__).'/config/Conexion.php';
 require_once dirname(__DIR__).'/middlewares/SesionActiva.php';
 verificarPerfilActivo($conexion);
@@ -22,15 +23,16 @@ if($id===false||($metodo==='POST'&&$id===null)){http_response_code(400);exit('Ci
 $mensaje='';$error='';$borrador=[];
 if($metodo==='POST'){
     $token=$_POST['csrf_token']??null;
-    if($rol!==1||!is_string($token)||!hash_equals($_SESSION['csrf_token'],$token)){http_response_code(403);exit('Acceso denegado.');}
-    if(!hcConsultar($conexion,$rol,$perfil,$id)){http_response_code(404);exit('Registro no disponible.');}
-    try{hcFinalizar($conexion,$usuarioIdSesion,$perfil,$id,$_POST);header('Location: historia_clinica.php?id='.$id.'&guardado=1',true,303);exit;}
-    catch(DomainException $e){$error=$e->getMessage();$borrador=$_POST;http_response_code(422);}
-    catch(Throwable $e){error_log('Historia clínica: '.get_class($e).' / '.$e->getCode());$error='No se pudo finalizar la atención. Consulta nuevamente el estado antes de reintentar.';http_response_code(500);}
+    if($rol!==1||!is_string($token)||!hash_equals($_SESSION['csrf_token'],$token)){auditar($conexion,'historia_clinica','registrar_atencion','denegado','cita',$id);http_response_code(403);exit('Acceso denegado.');}
+    if(!hcConsultar($conexion,$rol,$perfil,$id)){auditar($conexion,'historia_clinica','registrar_atencion','denegado','cita',$id);http_response_code(404);exit('Registro no disponible.');}
+    try{hcFinalizar($conexion,$usuarioIdSesion,$perfil,$id,$_POST);auditar($conexion,'historia_clinica','registrar_atencion','exitoso','cita',$id);header('Location: historia_clinica.php?id='.$id.'&guardado=1',true,303);exit;}
+    catch(DomainException $e){auditar($conexion,'historia_clinica','registrar_atencion','fallido','cita',$id);$error=$e->getMessage();$borrador=$_POST;http_response_code(422);}
+    catch(Throwable $e){auditar($conexion,'historia_clinica','registrar_atencion','fallido','cita',$id);error_log('Historia clínica: '.get_class($e).' / '.$e->getCode());$error='No se pudo finalizar la atención. Consulta nuevamente el estado antes de reintentar.';http_response_code(500);}
 }
 $filas=hcConsultar($conexion,$rol,$perfil,$id);
-if($id!==null&&!$filas){http_response_code(404);exit('Registro no disponible.');}
+if($id!==null&&!$filas){auditar($conexion,'historia_clinica','consultar_resumen','denegado','cita',$id);http_response_code(404);exit('Registro no disponible.');}
 $detalle=$id!==null?$filas[0]:null;
+if($metodo==='GET') auditar($conexion,'historia_clinica',$id===null?'consultar_listado':($detalle['historia_id']?'consultar_resumen':'acceder'),'exitoso',$id===null?null:'cita',$id);
 if($rol===1&&$detalle&&$detalle['historia_id']&&($_GET['guardado']??'')==='1')$mensaje='Atención registrada correctamente. Cita atendida.';
 $paginaActiva='historia_clinica';
 require dirname(__DIR__).'/vistas/historia_clinica.php';

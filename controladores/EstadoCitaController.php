@@ -1,6 +1,7 @@
 <?php
 
 session_start();
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 include dirname(__DIR__) . "/config/Conexion.php";
 require_once dirname(__DIR__) . "/middlewares/SesionActiva.php";
 verificarPerfilActivo($conexion);
@@ -67,12 +68,14 @@ if ($rol === 0) {
         );
 
         if (!$cancelada) {
+            auditar($conexion,"citas","cancelar","fallido","cita",$cita_id);
             http_response_code(409);
             exit(
                 "La cita no está disponible para cancelación."
             );
         }
 
+        auditar($conexion,"citas","cancelar","exitoso","cita",$cita_id);
         $_SESSION["mensaje_cita"] =
             "Tu cita fue cancelada correctamente.";
 
@@ -176,6 +179,7 @@ if ($rol === 0) {
     if ($stmt->execute()) {
 
         $conexion->commit();
+        auditar($conexion,"citas",match($estado){"cancelada"=>"cancelar","confirmada"=>"confirmar",default=>"cambiar_estado"},"exitoso","cita",$cita_id);
         header("Location: " . $destino);
         exit;
 

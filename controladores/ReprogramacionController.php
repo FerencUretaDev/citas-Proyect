@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 
 date_default_timezone_set('America/Lima');
 
@@ -110,12 +111,14 @@ try {
                 $conexion, $cita, $rol, $usuarioId, $doctorId, $fechaConsulta, $hora, $opcionesPorClave
             );
             if (!$ok) {
+                auditar($conexion,"citas","reprogramar",$codigo===403?"denegado":"fallido","cita",$citaId);
                 http_response_code($codigo);
                 if ($codigo === 403) {
                     exit('No se puede reprogramar esta cita.');
                 }
             } else {
                 // La transacción ya fue confirmada por el servicio.
+                auditar($conexion,"citas","reprogramar","exitoso","cita",$citaId);
                 $cita['doctor_id'] = $doctorId;
                 $cita['doctor_nombres'] = $doctorElegido['nombres'];
                 $cita['doctor_apellidos'] = $doctorElegido['apellidos'];
