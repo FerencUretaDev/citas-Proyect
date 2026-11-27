@@ -1,7 +1,11 @@
 <?php
 // Solo pruebas. No imprimir token ni respuesta completa (puede contener datos privados).
 function configuracionMercadoPago(): array {
-    $ruta=getenv('MP_CONFIG_FILE') ?: 'C:/xampp/private/config/mercadopago.ini';
+    $ruta = getenv('MP_CONFIG_FILE') ?: (
+    PHP_OS_FAMILY === 'Windows'
+        ? 'C:/xampp/private/config/mercadopago.ini'
+        : '/home/sistemacitasmedicas/private/config/mercadopago.ini'
+	);
     if (!is_readable($ruta)) throw new RuntimeException('Configuración de pago no disponible.');
     $c=parse_ini_file($ruta,false,INI_SCANNER_RAW);
     if (!is_array($c)||($c['MP_ENVIRONMENT']??'')!=='test'||($c['MP_CURRENCY']??'')!=='PEN'||empty($c['MP_ACCESS_TOKEN'])||str_contains($c['MP_ACCESS_TOKEN'],'PEGA_AQUI')||!extension_loaded('curl')) throw new RuntimeException('Configuración de prueba inválida.');

@@ -98,6 +98,12 @@ try {
 
     $conexion->set_charset("utf8mb4");
 
+// Establecer la zona horaria de Perú para PHP.
+date_default_timezone_set("America/Lima");
+
+// Establecer la zona horaria de la sesión MySQL/MariaDB.
+$conexion->query("SET time_zone = '-05:00'");
+
 } catch (Throwable $e) {
 
     error_log(
