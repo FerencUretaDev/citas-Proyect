@@ -1,22 +1,56 @@
 <?php
 // Acceso a datos de cuentas y directorios administrativos.
 
-function listarPacientes(mysqli $conexion, int $estadoListado): array
+require_once dirname(__DIR__).'/servicios/FiltroDirectorioService.php';
+
+function condicionesDirectorio(array $f, bool $pacientes): array
 {
-    $stmt = $conexion->prepare("
-    SELECT p.id, p.nombres, p.apellidos, p.dni, p.telefono, p.correo, p.fecha_registro, u.usuario
-    FROM pacientes p
-    LEFT JOIN usuarios u ON u.id = p.usuario_id
-    WHERE p.activo = ?
-    ORDER BY p.apellidos, p.nombres
-");
+    $cond = ['1=1']; $tipos = ''; $params = [];
+    if ($f['estado'] !== 'todos') {
+        $cond[] = 'f.activo = ?'; $tipos .= 'i'; $params[] = (int)$f['estado'];
+    }
+    if ($f['buscar'] !== '') {
+        $cond[] = "(CONCAT_WS(' ', f.nombres, f.apellidos) LIKE ? ESCAPE '!' OR CONCAT_WS(' ', f.apellidos, f.nombres) LIKE ? ESCAPE '!' OR f.dni LIKE ? ESCAPE '!'
+            " . ($pacientes ? '' : " OR f.cmp LIKE ? ESCAPE '!'") . ")";
+        $patron = patronDirectorio($f['buscar']);
+        $tipos .= 'sss'; array_push($params, $patron, $patron, $patron);
+        if (!$pacientes) { $tipos .= 's'; $params[] = $patron; }
+    }
+    if ($pacientes && $f['sexo'] !== '') {
+        $cond[] = 'f.sexo = ?'; $tipos .= 's'; $params[] = $f['sexo'];
+    }
+    if (!$pacientes && $f['especialidad'] !== '') {
+        $cond[] = 'f.especialidad = ?'; $tipos .= 's'; $params[] = $f['especialidad'];
+    }
+    return [implode(' AND ', $cond), $tipos, $params];
+}
+
+function consultarDirectorio(mysqli $db, string $sql, string $tipos, array $params): array
+{
+    $stmt = $db->prepare($sql);
     try {
-        $stmt->bind_param("i", $estadoListado);
+        if ($tipos !== '') $stmt->bind_param($tipos, ...$params);
         $stmt->execute();
         return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    } finally {
-        $stmt->close();
-    }
+    } finally { $stmt->close(); }
+}
+
+function buscarDirectorio(mysqli $db, bool $pacientes, array $f): array
+{
+    $tabla = $pacientes ? 'pacientes' : 'doctores';
+    $columnas = $pacientes
+        ? 'f.id, f.nombres, f.apellidos, f.dni, f.sexo, f.telefono, f.correo, f.fecha_registro, f.activo, u.usuario'
+        : 'f.id, f.nombres, f.apellidos, f.dni, f.cmp, f.especialidad, f.telefono, f.hora_inicio, f.hora_fin, f.activo, u.usuario';
+    [$where, $tipos, $params] = condicionesDirectorio($f, $pacientes);
+    $total = (int)consultarDirectorio($db, "SELECT COUNT(*) AS total FROM $tabla f WHERE $where", $tipos, $params)[0]['total'];
+    $p = paginaDirectorio($total, $f['pagina']);
+    $filas = consultarDirectorio($db, "SELECT $columnas FROM $tabla f LEFT JOIN usuarios u ON u.id=f.usuario_id WHERE $where ORDER BY f.apellidos, f.nombres, f.id LIMIT ? OFFSET ?", $tipos.'ii', [...$params, $p['limite'], $p['offset']]);
+    return ['filas'=>$filas, 'total'=>$total] + $p;
+}
+
+function especialidadesDirectorio(mysqli $db): array
+{
+    return array_column(consultarDirectorio($db, "SELECT DISTINCT especialidad FROM doctores WHERE especialidad IS NOT NULL AND especialidad <> '' ORDER BY especialidad", '', []), 'especialidad');
 }
 
 function usuarioFichaPaciente(mysqli $conexion, int $id): ?string
@@ -27,25 +61,6 @@ function usuarioFichaPaciente(mysqli $conexion, int $id): ?string
         $stmt->bind_param("i", $id);
         $stmt->execute();
         return $stmt->get_result()->fetch_assoc()["usuario"] ?? null;
-    } finally {
-        $stmt->close();
-    }
-}
-
-function listarDoctores(mysqli $conexion, int $estadoListado): array
-{
-    $stmt = $conexion->prepare("
-    SELECT d.id, d.nombres, d.apellidos, d.cmp, d.especialidad, d.telefono,
-           d.hora_inicio, d.hora_fin, u.usuario
-    FROM doctores d
-    LEFT JOIN usuarios u ON u.id = d.usuario_id
-    WHERE d.activo = ?
-    ORDER BY d.apellidos, d.nombres
-");
-    try {
-        $stmt->bind_param("i", $estadoListado);
-        $stmt->execute();
-        return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     } finally {
         $stmt->close();
     }

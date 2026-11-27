@@ -1,0 +1,10 @@
+.directorio-filtros{background:#f3f8fa;border:1px solid #dbe5e8;border-radius:12px;padding:16px;margin:12px 0;color:#17394c}
+.directorio-filtros h3{margin:0 0 14px;font-size:1.1rem}
+.directorio-filtros-grid{display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr));gap:12px}
+.directorio-filtros-grid label{display:flex;flex-direction:column;gap:6px;font-size:.9rem;font-weight:600;min-width:0}
+.directorio-filtros-grid input,.directorio-filtros-grid select{width:100%;min-width:0;box-sizing:border-box;padding:10px;border:1px solid #cbd8de;border-radius:7px;background:#fff;color:#17394c;font:inherit;font-weight:400}
+.directorio-filtros-acciones,.directorio-paginacion{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.directorio-filtros button,.directorio-filtros-acciones a,.directorio-paginacion button{display:inline-block;padding:10px 15px;border:0;border-radius:7px;background:#087f8c;color:white;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.directorio-filtros-acciones a{background:#526875}.directorio-paginacion{justify-content:flex-end}.directorio-resultados{font-size:.9rem;margin:12px 0;color:#365363}
+.directorio-filtros [role=alert]{color:#a32121}.directorio-filtros button:focus-visible,.directorio-filtros a:focus-visible,.directorio-paginacion button:focus-visible{outline:3px solid #144d82;outline-offset:2px}
+@media(max-width:700px){.directorio-filtros-grid{grid-template-columns:1fr}}

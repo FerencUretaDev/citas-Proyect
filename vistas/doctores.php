@@ -13,6 +13,10 @@
             background-color: white; color: #17345c; font: inherit;
         }
         .doctores-section-heading { flex-wrap: wrap; }
+        .doctor-dni-consulta { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px; min-width: 0; }
+        .doctor-dni-consulta button { cursor: pointer; font: inherit; }
+        .doctor-dni-consulta small { overflow-wrap: anywhere; }
+        .doctor-dni-consulta button:disabled { opacity: .65; cursor: wait; }
         body.page-doctores .doctores-section-heading .doctores-back {
             width: auto;
             min-height: 40px;
@@ -22,6 +26,7 @@
             white-space: nowrap;
         }
     </style>
+    <link rel="stylesheet" href="css/filtros-directorio.css?v=1">
 </head>
 <body class="page-doctores has-sidebar">
 <?php include dirname(__DIR__) . "/vistas/componentes/sidebar.php"; ?>
@@ -125,6 +130,15 @@
                 <?php endif; ?>
 
                 <div class="doctor-form-grid">
+                    <label>DNI <span>8 dígitos · obligatorio</span>
+                        <input type="text" name="dni" inputmode="numeric" minlength="8" maxlength="8"
+                               pattern="[0-9]{8}" title="Ingresa exactamente 8 dígitos." autocomplete="off"
+                               oninput="this.value = this.value.replace(/[^0-9]/g, '')" required value="<?= htmlspecialchars($formulario['dni'], ENT_QUOTES, 'UTF-8') ?>">
+                    </label>
+                    <div class="doctor-dni-consulta">
+                        <button type="button" class="doctores-back" id="consultar-dni">Consultar DNI</button>
+                        <small id="resultado-dni" role="status" aria-live="polite"></small>
+                    </div>
                     <label>Nombres
                         <input name="nombres" maxlength="100" autocomplete="given-name" required value="<?php echo htmlspecialchars($formulario["nombres"], ENT_QUOTES, "UTF-8"); ?>">
                     </label>
@@ -188,27 +202,28 @@
             <div class="doctores-section-heading">
                 <div>
                     <p class="doctores-eyebrow">REGISTROS</p>
-                    <h2 id="tituloListaDoctores"><?= $verInactivos ? "Doctores inactivos" : "Doctores registrados" ?></h2>
+                    <h2 id="tituloListaDoctores"><?= $verInactivos ? "Doctores inactivos" : ($filtros['estado'] === 'todos' ? "Todos los doctores" : "Doctores registrados") ?></h2>
                 </div>
                 <?php if (!$mostrarFormulario): ?>
                     <a class="doctores-back" href="doctores?nuevo=1">Agregar doctor</a>
                 <?php endif; ?>
-                <span class="doctores-count"><?php echo count($doctores) === 1 ? "1 doctor" : count($doctores) . " doctores"; ?></span>
+                <span class="doctores-count"><?= (int)$listado['total'] ?> doctores</span>
             </div>
 
-            <p><a href="doctores<?= $verInactivos ? '' : '?vista=inactivos' ?>"><?= $verInactivos ? 'Ver activos' : 'Ver inactivos' ?></a></p>
+            <?php $esDirectorioPaciente = false; require __DIR__.'/componentes/filtros_directorio.php'; ?>
             <div class="doctores-table-wrap">
                 <table class="doctores-table">
                     <thead>
-                        <tr><th>Profesional</th><th>Especialidad</th><th>Horario</th><th>Usuario</th><th>Acciones</th></tr>
+                        <tr><th>Profesional</th><th>DNI</th><th>Especialidad</th><th>Horario</th><th>Usuario</th><th>Acciones</th></tr>
                     </thead>
                     <tbody>
                         <?php foreach ($doctores as $doctor): ?>
                             <tr>
                                 <td data-label="Profesional">
                                     <strong><?php echo htmlspecialchars($doctor["nombres"] . " " . $doctor["apellidos"], ENT_QUOTES, "UTF-8"); ?></strong>
-                                    <small><?php echo htmlspecialchars($doctor["cmp"] ?: "CMP no registrado", ENT_QUOTES, "UTF-8"); ?></small>
+                                    <small><?php echo htmlspecialchars($doctor["cmp"] ?: "CMP no registrado", ENT_QUOTES, "UTF-8"); ?> · <?= (int)$doctor['activo'] === 1 ? 'Activo' : 'Inactivo' ?></small>
                                 </td>
+                                <td data-label="DNI"><?= htmlspecialchars($doctor["dni"] ?? "Pendiente de registrar", ENT_QUOTES, "UTF-8") ?></td>
                                 <td data-label="Especialidad"><?php echo htmlspecialchars($doctor["especialidad"], ENT_QUOTES, "UTF-8"); ?></td>
                                 <td data-label="Horario"><?php echo htmlspecialchars(substr($doctor["hora_inicio"], 0, 5) . " - " . substr($doctor["hora_fin"], 0, 5), ENT_QUOTES, "UTF-8"); ?></td>
                                 <td data-label="Usuario">
@@ -223,21 +238,23 @@
                                     <?php endif; ?>
                                 </td>
                                 <td data-label="Acciones">
-                                    <?php if (!$verInactivos): ?><a class="doctores-back" href="doctores?editar=<?= (int)$doctor['id'] ?>">Editar</a><?php endif; ?>
-                                    <a class="doctores-back" href="estado_perfil?tipo=doctor&amp;id=<?= (int)$doctor['id'] ?>"><?= $verInactivos ? 'Reactivar' : 'Desactivar' ?></a>
+                                    <?php if ((int)$doctor['activo'] === 1): ?><a class="doctores-back" href="doctores?editar=<?= (int)$doctor['id'] ?>">Editar</a><?php endif; ?>
+                                    <a class="doctores-back" href="estado_perfil?tipo=doctor&amp;id=<?= (int)$doctor['id'] ?>"><?= (int)$doctor['activo'] !== 1 ? 'Reactivar' : 'Desactivar' ?></a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if (!$doctores): ?>
-                            <tr><td colspan="5" class="doctores-empty">No hay doctores en esta lista.</td></tr>
+                            <tr><td colspan="6" class="doctores-empty">No se encontraron doctores con estos filtros.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
             </div>
+            <?php require __DIR__.'/componentes/paginacion_directorio.php'; ?>
         </section>
     </section>
 </main>
 <script src="js/javascript.js?v=20261124-usuarios" defer></script>
 <script src="js/password-admin.js?v=2" defer></script>
+<script src="js/consulta_dni.js?v=20261127-doctores" defer></script>
 </body>
 </html>

@@ -152,6 +152,8 @@ function inicializarGraficosReporte() {
 }
 
 function inicializarFiltroCitas() {
+    // El doctor filtra en el servidor antes de paginar.
+    if (document.body.dataset.userRole === "1") return;
     const tarjetas = document.querySelectorAll(".tarjeta-filtro");
     const filas = document.querySelectorAll(".fila-cita");
     const mensajes = document.querySelectorAll(".fila-sin-resultados");

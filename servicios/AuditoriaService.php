@@ -3,10 +3,10 @@ require_once dirname(__DIR__).'/repositorios/AuditoriaDAO.php';
 function auditoriaCatalogo(): array {
     return [
         'seguridad'=>['iniciar_sesion','cerrar_sesion','perfil_inactivo'],
-        'pacientes'=>['registrar','editar','archivar','reactivar','cambiar_password'],
-        'doctores'=>['registrar','editar','desactivar','reactivar','cambiar_password'],
-        'citas'=>['reservar','cancelar','reprogramar','confirmar','cambiar_estado'],
-        'ausencias'=>['registrar','cancelar'],
+        'pacientes'=>['consultar','registrar','editar','archivar','reactivar','cambiar_password'],
+        'doctores'=>['consultar','registrar','editar','desactivar','reactivar','cambiar_password'],
+        'citas'=>['consultar','acceder','reservar','cancelar','reprogramar','confirmar','cambiar_estado'],
+        'ausencias'=>['registrar','cancelar','consultar','acceder'],
         'pagos'=>['acceder','crear_orden','verificar','cancelar','acreditar','estado_cancelado','estado_rechazado','estado_revision','estado_reembolsado','estado_en_proceso','estado_pendiente','estado_expirado'],
         'historia_clinica'=>['registrar_atencion','consultar_resumen','consultar_listado','acceder'],
         'reportes'=>['exportar_citas_csv','exportar_pagos_csv','generar_excel_java'],

@@ -193,3 +193,12 @@
     }
 
 }
+.pagina-historial .historial-paginacion {
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-top:16px;
+}
+.pagina-historial .historial-tabla table { min-width: 980px; }

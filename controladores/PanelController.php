@@ -244,41 +244,29 @@ if ($rol == 1) {
     }
 
 
-    // Citas del doctor
-    $sql = "
-        SELECT
-            c.id,
-            (SELECT g.estado FROM pagos g WHERE g.cita_id=c.id) AS pago_estado,
-            (SELECT h.id FROM historias_clinicas h WHERE h.cita_id=c.id) AS historia_id,
-            c.fecha,
-            c.hora,
-            c.modalidad,
-            c.estado,
-            c.motivo,
-
-            p.dni,
-            p.nombres,
-            p.apellidos
-
-        FROM citas c
-
-        INNER JOIN pacientes p
-            ON c.paciente_id = p.id
-
-        WHERE c.doctor_id = ?
-
-        ORDER BY c.fecha ASC, c.hora ASC
-    ";
-
-    $stmt = $conexion->prepare($sql);
-    $stmt->bind_param("i", $doctor_id);
-    $stmt->execute();
-
-    $resultado = $stmt->get_result();
-
-    while ($fila = $resultado->fetch_assoc()) {
-        $citas[] = $fila;
+    // Filtros del doctor: el ámbito se obtiene exclusivamente de su sesión.
+    require_once dirname(__DIR__).'/repositorios/FiltroCitasDoctorDAO.php';
+    header('Cache-Control: no-store, private');
+    header('Referrer-Policy: no-referrer');
+    $metodo = $_SERVER['REQUEST_METHOD'] ?? '';
+    if (!in_array($metodo, ['GET','POST'], true)) {
+        header('Allow: GET, POST'); http_response_code(405); exit('Método no permitido.');
     }
+    if ($metodo === 'POST' && (!is_string($_POST['csrf_token'] ?? null) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']))) {
+        auditar($conexion,'citas','consultar','denegado'); http_response_code(403); exit('Solicitud no válida.');
+    }
+    try {
+        // Los accesos rápidos del resumen solo transmiten el estado por GET.
+        $fDoctor = filtrosCitasDoctor($metodo === 'POST' ? $_POST : array_intersect_key($_GET, ['estado'=>true]));
+        $listadoDoctor = buscarCitasDoctor($conexion, $doctor_id, $fDoctor);
+        $citas = $listadoDoctor['filas'];
+        auditar($conexion,'citas','consultar');
+    } catch (DomainException $e) {
+        auditar($conexion,'citas','consultar','fallido'); http_response_code(400); exit('Filtros no válidos. Vuelve al panel e inténtalo nuevamente.');
+    } catch (Throwable $e) {
+        auditar($conexion,'citas','consultar','fallido'); error_log('Consulta citas doctor: '.get_class($e).' / '.$e->getCode()); http_response_code(500); exit('No se pudieron consultar las citas.');
+    }
+
 }
 
 

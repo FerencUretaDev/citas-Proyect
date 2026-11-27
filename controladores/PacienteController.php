@@ -13,6 +13,11 @@ if (!isset($_SESSION["id"]) || !isset($_SESSION["rol"]) || (int)$_SESSION["rol"]
 if (empty($_SESSION["csrf_token"])) {
     $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
 }
+header('Cache-Control: no-store');
+$esBusqueda = $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? null) === 'buscar_directorio';
+if ($esBusqueda && (!is_string($_POST['csrf_token'] ?? null) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']))) {
+    http_response_code(403); exit('Solicitud no válida.');
+}
 $rol = 2;
 $paginaActiva = "pacientes";
 
@@ -56,7 +61,7 @@ if ($pacienteId > 0) {
     $formulario = array_merge($formulario, $pacienteEditar);
 }
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
+if ($_SERVER["REQUEST_METHOD"] === "POST" && !$esBusqueda) {
     $tipoMensaje = "error";
     if (!is_string($_POST["csrf_token"] ?? null) || !hash_equals($_SESSION["csrf_token"], $_POST["csrf_token"])) {
         http_response_code(403);
@@ -96,7 +101,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $fechaNacimiento <= date("Y-m-d");
     }
 
-    $sexoValido = in_array($formulario["sexo"], ["", "M", "F", "X"], true);
+    $sexoValido = sexoPacienteValido($formulario["sexo"]);
     $correoValido = $formulario["correo"] === "" || filter_var($formulario["correo"], FILTER_VALIDATE_EMAIL);
     $datosValidos = $formulario["nombres"] !== "" &&
         $formulario["apellidos"] !== "" &&
@@ -109,6 +114,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $tipoMensaje = "error";
     } elseif ($estaCreando && ($base === "" || preg_match('/^.{1,100}$/usD', $formulario["apellidos"]) !== 1)) {
         $mensaje = "Revisa los nombres y apellidos. Los apellidos juntos admiten hasta 100 caracteres.";
+    } elseif (!$sexoValido) {
+        $mensaje = "Selecciona Masculino o Femenino en el campo Sexo.";
     } elseif (!$datosValidos) {
         $mensaje = "Revisa los campos obligatorios, el formato de correo y la fecha de nacimiento.";
     } elseif ($errorPassword !== null) {
@@ -120,7 +127,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $apellidos = $formulario["apellidos"];
             $dni = $formulario["dni"];
             $fechaNacimientoDb = $fechaNacimiento !== "" ? $fechaNacimiento : null;
-            $sexo = $formulario["sexo"] !== "" ? $formulario["sexo"] : null;
+            $sexo = $formulario["sexo"];
             $telefono = $formulario["telefono"] !== "" ? $formulario["telefono"] : null;
             $direccion = $formulario["direccion"] !== "" ? $formulario["direccion"] : null;
             $correo = $formulario["correo"] !== "" ? $formulario["correo"] : null;
@@ -169,7 +176,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 }
 
-$pacientes = listarPacientes($conexion, $estadoListado);
+$errorFiltros = '';
+$filtros = filtrosDirectorio([], true, (string)$estadoListado);
+try {
+    if ($esBusqueda) $filtros = filtrosDirectorio($_POST, true, (string)$estadoListado);
+    $listado = buscarDirectorio($conexion, true, $filtros);
+    if ($esBusqueda) auditar($conexion, 'pacientes', 'consultar', 'exitoso');
+} catch (DomainException $e) {
+    $errorFiltros = $e->getMessage();
+    $listado = ['filas'=>[], 'total'=>0, 'pagina'=>1, 'paginas'=>1];
+    if ($esBusqueda) auditar($conexion, 'pacientes', 'consultar', 'fallido');
+}
+$pacientes = $listado['filas'];
+$filtros['pagina'] = $listado['pagina'];
+$verInactivos = $filtros['estado'] === '0';
+
 $estaEditando = $pacienteId > 0;
 $usuarioFicha = $estaEditando ? usuarioFichaPaciente($conexion, $pacienteId) : null;
 

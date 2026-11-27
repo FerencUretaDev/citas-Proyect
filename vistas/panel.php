@@ -20,6 +20,9 @@
 
 
     <link rel="stylesheet" href="css/style.css?v=20261011-responsive">
+<?php if ($rol === 1): ?>
+<link rel="stylesheet" href="css/filtros-directorio.css">
+<?php endif; ?>
 </head>
 
 
@@ -501,37 +504,37 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
 
         <div class="tarjetas">
 
-            <button type="button" class="tarjeta tarjeta-filtro activo" data-filtro="todos">
+            <a href="panel" class="tarjeta tarjeta-filtro<?= $fDoctor['estado'] === '' ? ' activo' : '' ?>" style="text-decoration:none;color:inherit" <?= $fDoctor['estado'] === '' ? 'aria-current="true"' : '' ?>>
                 <div class="tarjeta-icono azul">📅</div>
                 <div class="tarjeta-info">
                     <h3>Total de citas</h3>
                     <div class="numero"><?php echo $totalCitas; ?></div>
                 </div>
-            </button>
+            </a>
 
-            <button type="button" class="tarjeta tarjeta-filtro" data-filtro="atendida">
+            <a href="panel?estado=atendida" class="tarjeta tarjeta-filtro<?= $fDoctor['estado'] === 'atendida' ? ' activo' : '' ?>" style="text-decoration:none;color:inherit" <?= $fDoctor['estado'] === 'atendida' ? 'aria-current="true"' : '' ?>>
                 <div class="tarjeta-icono verde">✓</div>
                 <div class="tarjeta-info">
                     <h3>Atendidas</h3>
                     <div class="numero"><?php echo $atendidas; ?></div>
                 </div>
-            </button>
+            </a>
 
-            <button type="button" class="tarjeta tarjeta-filtro" data-filtro="pendiente">
+            <a href="panel?estado=pendiente" class="tarjeta tarjeta-filtro<?= $fDoctor['estado'] === 'pendiente' ? ' activo' : '' ?>" style="text-decoration:none;color:inherit" <?= $fDoctor['estado'] === 'pendiente' ? 'aria-current="true"' : '' ?>>
                 <div class="tarjeta-icono amarillo">◷</div>
                 <div class="tarjeta-info">
                     <h3>Pendientes</h3>
                     <div class="numero"><?php echo $pendientes; ?></div>
                 </div>
-            </button>
+            </a>
 
-            <button type="button" class="tarjeta tarjeta-filtro" data-filtro="confirmada">
+            <a href="panel?estado=confirmada" class="tarjeta tarjeta-filtro<?= $fDoctor['estado'] === 'confirmada' ? ' activo' : '' ?>" style="text-decoration:none;color:inherit" <?= $fDoctor['estado'] === 'confirmada' ? 'aria-current="true"' : '' ?>>
                 <div class="tarjeta-icono azul">✓</div>
                 <div class="tarjeta-info">
                     <h3>Confirmadas</h3>
                     <div class="numero"><?php echo $confirmadas; ?></div>
                 </div>
-            </button>
+            </a>
 
         </div>
 
@@ -614,24 +617,8 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
             </div>
 
 
-            <div class="filtro-resultado">
-
-                <span>
-                    Mostrando:
-                    <strong class="textoFiltro">
-                        Todas las citas
-                    </strong>
-                </span>
-
-                <span>
-                    <strong class="cantidadFiltro">
-                        <?php echo $totalCitas; ?>
-                    </strong>
-                    resultado(s)
-                </span>
-
-            </div>
-
+            <?php require __DIR__.'/componentes/filtros_citas_doctor.php'; ?>
+            <p class="directorio-resultados"><?= (int)$listadoDoctor['total'] ?> resultado(s). <?= count($citas) ?> en esta página.</p>
 
             <table>
 
@@ -776,19 +763,13 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
 
                 <?php endforeach; ?>
 
-                <tr class="fila-sin-resultados">
-                    <td colspan="8" class="mensaje-tabla-vacio">
-                        No hay citas con el estado seleccionado.
-                    </td>
-                </tr>
-
                 <?php if (count($citas) == 0): ?>
 
                     <tr>
 
                         <td colspan="8" class="mensaje-tabla-vacio">
 
-                            No tienes citas registradas.
+                            No hay citas que coincidan con los filtros.
 
                         </td>
 
@@ -799,6 +780,7 @@ include dirname(__DIR__) . "/vistas/componentes/sidebar.php";
                 </tbody>
 
             </table>
+            <?php $listado = $listadoDoctor; require __DIR__.'/componentes/paginacion_directorio.php'; ?>
 
         </div>
 

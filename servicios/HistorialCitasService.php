@@ -166,3 +166,16 @@ function consultarHistorialPaciente(
         "resumen" => $resumen
     ];
 }
+
+// Filtros avanzados: conservar el contrato anterior para los consumidores existentes.
+require_once __DIR__.'/FiltroCitasAdminService.php';
+require_once dirname(__DIR__).'/repositorios/FiltroHistorialPacienteDAO.php';
+
+function filtrosHistorialAvanzado(array $entrada): array {
+    $permitidos=['doctor','especialidad','estado','modalidad','pago','desde','hasta','pagina'];
+    $datos=array_intersect_key($entrada,array_flip($permitidos));
+    foreach(['fecha_inicio'=>'desde','fecha_fin'=>'hasta'] as $anterior=>$actual) {
+        if(!array_key_exists($actual,$datos) && array_key_exists($anterior,$entrada)) $datos[$actual]=$entrada[$anterior];
+    }
+    return array_intersect_key(filtrosCitasAdmin($datos),array_flip($permitidos));
+}

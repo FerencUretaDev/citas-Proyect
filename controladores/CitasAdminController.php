@@ -1,58 +1,39 @@
 <?php
 session_start();
-include dirname(__DIR__) . "/config/Conexion.php";
-require_once dirname(__DIR__) . "/servicios/CitaService.php";
-
-if (!isset($_SESSION["id"]) || !isset($_SESSION["rol"]) || (int)$_SESSION["rol"] !== 2) {
-    header("Location: index.php");
-    exit;
+header('Cache-Control: no-store, private');
+header('Referrer-Policy: no-referrer');
+require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
+require_once dirname(__DIR__).'/repositorios/FiltroCitasAdminDAO.php';
+if (!auditoriaAdmin($_SESSION)) {
+    if ($dbAud=auditoriaConexionOpcional()) auditar($dbAud,'citas','acceder','denegado');
+    header('Location: index.php'); exit;
 }
-
-$rol = 2;
-$paginaActiva = "citas";
-
-if (empty($_SESSION["csrf_token"])) {
-    $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
+require dirname(__DIR__).'/config/Conexion.php';
+$rol=2; $paginaActiva='citas';
+$_SESSION['csrf_token']??=bin2hex(random_bytes(32));
+$etiquetasEstado=ETIQUETAS_ESTADO_CITA;
+$transiciones=TRANSICIONES_ESTADO_CITA;
+$metodo=$_SERVER['REQUEST_METHOD']??'';
+if (!in_array($metodo,['GET','POST'],true)) { header('Allow: GET, POST'); http_response_code(405); exit('Método no permitido.'); }
+if ($metodo==='POST' && (!is_string($_POST['csrf_token']??null) || !hash_equals($_SESSION['csrf_token'],$_POST['csrf_token']))) {
+    auditar($conexion,'citas','consultar','denegado'); http_response_code(403); exit('Solicitud no válida.');
 }
-
-$etiquetasEstado = ETIQUETAS_ESTADO_CITA;
-$transiciones = TRANSICIONES_ESTADO_CITA;
-$estadoSeleccionado = $_GET["estado"] ?? "";
-if (!is_string($estadoSeleccionado) || !array_key_exists($estadoSeleccionado, $etiquetasEstado)) {
-    $estadoSeleccionado = "";
+try {
+    [$tipoFicha,$idFicha]=fichaFiltroCitasAdmin($_GET);
+    $filtrarFicha=$idFicha>0;
+    // GET mantiene los enlaces existentes por estado/ficha; textos personales solo por POST.
+    $entrada=$metodo==='POST'?$_POST:array_intersect_key($_GET,array_flip(['estado','especialidad','modalidad','pago','desde','hasta','pagina']));
+    $f=filtrosCitasAdmin($entrada);
+    $especialidades=especialidadesDirectorio($conexion);
+    if ($f['especialidad']!=='' && !in_array($f['especialidad'],$especialidades,true)) throw new DomainException('Especialidad no válida.');
+    $ahora=(new DateTimeImmutable('now',new DateTimeZone('America/Lima')))->format('Y-m-d H:i:s');
+    $listado=buscarCitasAdmin($conexion,$f,$tipoFicha,$idFicha,$ahora);
+    $estadoSeleccionado=$f['estado']; $totalVisible=$listado['total'];
+    $urlFiltros='citas_admin'.($filtrarFicha?'?'.http_build_query(['tipo'=>$tipoFicha,'id'=>$idFicha]):'');
+    auditar($conexion,'citas','consultar');
+} catch (DomainException $e) {
+    auditar($conexion,'citas','consultar','fallido'); http_response_code(400); exit('Filtros no válidos. Vuelve al listado de citas e inténtalo nuevamente.');
+} catch (Throwable $e) {
+    auditar($conexion,'citas','consultar','fallido'); error_log('Consulta citas administrativas: '.get_class($e).' / '.$e->getCode()); http_response_code(500); exit('No se pudo consultar las citas.');
 }
-
-$sqlCitas = "
-    SELECT c.id, (SELECT g.estado FROM pagos g WHERE g.cita_id=c.id) AS pago_estado, c.fecha, c.hora, c.modalidad, c.motivo, c.estado,
-           p.nombres AS paciente_nombres, p.apellidos AS paciente_apellidos, p.dni,
-           d.nombres AS doctor_nombres, d.apellidos AS doctor_apellidos, d.especialidad
-    FROM citas c
-    INNER JOIN pacientes p ON p.id = c.paciente_id
-    INNER JOIN doctores d ON d.id = c.doctor_id
-";
-
-$tipoFicha = $_GET['tipo'] ?? '';
-$idFicha = filter_var($_GET['id'] ?? 0, FILTER_VALIDATE_INT);
-$filtrarFicha = $idFicha > 0 && in_array($tipoFicha, ['paciente', 'doctor'], true);
-$condiciones = [];
-$parametros = [];
-if ($filtrarFicha) {
-    $columna = $tipoFicha === 'paciente' ? 'c.paciente_id' : 'c.doctor_id';
-    $condiciones[] = "$columna = ? AND TIMESTAMP(c.fecha,c.hora) >= ? AND c.estado IN ('pendiente','confirmada')";
-    $parametros[] = $idFicha;
-    $parametros[] = (new DateTimeImmutable('now', new DateTimeZone('America/Lima')))->format('Y-m-d H:i:s');
-}
-if ($estadoSeleccionado !== "") {
-    $condiciones[] = 'c.estado = ?';
-    $parametros[] = $estadoSeleccionado;
-}
-if ($condiciones) {
-    $sqlCitas .= ' WHERE ' . implode(' AND ', $condiciones);
-}
-$sqlCitas .= " ORDER BY c.fecha DESC, c.hora DESC, c.id DESC";
-$stmtCitas = $conexion->prepare($sqlCitas);
-$stmtCitas->execute($parametros);
-$resultadoCitas = $stmtCitas->get_result();
-$totalVisible = $resultadoCitas->num_rows;
-
-require dirname(__DIR__) . "/vistas/citas_admin.php";
+require dirname(__DIR__).'/vistas/citas_admin.php';

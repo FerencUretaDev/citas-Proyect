@@ -62,7 +62,8 @@ require __DIR__ . "/componentes/sidebar.php";
         </div>
     </div>
 
-    <!-- Resumen del historial -->
+    <!-- Resumen del historial filtrado -->
+    <p class="historial-contador">Resumen de las citas que coinciden con los filtros (todas las páginas).</p>
 
     <div class="tarjetas historial-tarjetas">
 
@@ -98,33 +99,49 @@ require __DIR__ . "/componentes/sidebar.php";
             <h2>🔍 Buscar en mi historial</h2>
         </div>
 
-        <form method="GET"
+        <form method="POST" id="filtros-historial"
               action="historial_citas.php"
               class="historial-formulario">
+            <input type="hidden" name="csrf_token" value="<?= $escapar($_SESSION['csrf_token']) ?>">
+            <div class="historial-campo">
+                <label for="doctor">Doctor</label>
+                <input type="search" id="doctor" name="doctor" maxlength="100" placeholder="Nombres o apellidos" value="<?= $escapar($filtros['doctor']) ?>">
+            </div>
+            <?php foreach (['modalidad'=>['Modalidad',FILTRO_MODALIDADES_CITAS], 'pago'=>['Estado financiero',FILTRO_PAGOS_CITAS]] as $campo=>$opciones): ?>
+                <div class="historial-campo">
+                    <label for="<?= $escapar($campo) ?>"><?= $escapar($opciones[0]) ?></label>
+                    <select id="<?= $escapar($campo) ?>" name="<?= $escapar($campo) ?>">
+                        <option value="">Todos</option>
+                        <?php foreach ($opciones[1] as $valor=>$texto): ?>
+                            <option value="<?= $escapar($valor) ?>" <?= $filtros[$campo]===$valor?'selected':'' ?>><?= $escapar($texto) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endforeach; ?>
 
             <div class="historial-campo">
 
-                <label for="fecha_inicio">
+                <label for="desde">
                     Fecha inicial
                 </label>
 
                 <input type="date"
-                       id="fecha_inicio"
-                       name="fecha_inicio"
-                       value="<?= $escapar($filtros["fecha_inicio"]) ?>">
+                       id="desde"
+                       name="desde"
+                       value="<?= $escapar($filtros["desde"]) ?>">
 
             </div>
 
             <div class="historial-campo">
 
-                <label for="fecha_fin">
+                <label for="hasta">
                     Fecha final
                 </label>
 
                 <input type="date"
-                       id="fecha_fin"
-                       name="fecha_fin"
-                       value="<?= $escapar($filtros["fecha_fin"]) ?>">
+                       id="hasta"
+                       name="hasta"
+                       value="<?= $escapar($filtros["hasta"]) ?>">
 
             </div>
 
@@ -222,8 +239,8 @@ require __DIR__ . "/componentes/sidebar.php";
         <p class="historial-contador">
 
             Se encontraron
-            <strong><?= count($citas) ?></strong>
-            cita(s).
+            <strong><?= (int)$resumen["total"] ?></strong>
+            cita(s). <?= count($citas) ?> en esta página.
 
         </p>
 
@@ -241,6 +258,7 @@ require __DIR__ . "/componentes/sidebar.php";
                         <th>Modalidad</th>
                         <th>Motivo</th>
                         <th>Estado</th>
+                        <th>Estado financiero</th>
                     </tr>
 
                 </thead>
@@ -305,6 +323,7 @@ require __DIR__ . "/componentes/sidebar.php";
 
                         </td>
 
+                        <td><?= $escapar($cita['pago_estado']===null ? FILTRO_PAGOS_CITAS['sin_pago'] : (FILTRO_PAGOS_CITAS[$cita['pago_estado']] ?? $cita['pago_estado'])) ?></td>
                     </tr>
 
                 <?php endforeach; ?>
@@ -313,7 +332,7 @@ require __DIR__ . "/componentes/sidebar.php";
 
                     <tr>
 
-                        <td colspan="7"
+                        <td colspan="8"
                             class="historial-vacio">
 
                             <div>📋</div>
@@ -339,6 +358,15 @@ require __DIR__ . "/componentes/sidebar.php";
 
         </div>
 
+        <nav class="historial-paginacion" aria-label="Paginación del historial">
+            <?php if ($resultado['pagina']>1): ?>
+                <button class="historial-boton limpiar" type="submit" form="filtros-historial" name="pagina" value="<?= $resultado['pagina']-1 ?>">Anterior</button>
+            <?php endif; ?>
+            <span>Página <?= (int)$resultado['pagina'] ?> de <?= (int)$resultado['paginas'] ?></span>
+            <?php if ($resultado['pagina']<$resultado['paginas']): ?>
+                <button class="historial-boton limpiar" type="submit" form="filtros-historial" name="pagina" value="<?= $resultado['pagina']+1 ?>">Siguiente</button>
+            <?php endif; ?>
+        </nav>
     </section>
 
     <div class="historial-regresar">

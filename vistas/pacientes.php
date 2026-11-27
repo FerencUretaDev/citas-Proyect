@@ -6,6 +6,7 @@
     <title>Administrar pacientes</title>
     <link rel="stylesheet" href="css/style.css?v=20261011-responsive">
     <link rel="stylesheet" href="css/usuarios-directorio.css?v=20261126-password-ui">
+    <link rel="stylesheet" href="css/filtros-directorio.css?v=1">
 </head>
 <body class="page-pacientes has-sidebar">
 <?php include dirname(__DIR__) . "/vistas/componentes/sidebar.php"; ?>
@@ -140,12 +141,11 @@
                         <label>Fecha de nacimiento <span>Opcional</span>
                             <input type="date" name="fecha_nacimiento" max="<?php echo date("Y-m-d"); ?>" value="<?php echo htmlspecialchars($formulario["fecha_nacimiento"] ?? "", ENT_QUOTES, "UTF-8"); ?>">
                         </label>
-                        <label>Sexo <span>Opcional</span>
-                            <select name="sexo">
-                                <option value="">Sin especificar</option>
+                        <label>Sexo <span>Obligatorio</span>
+                            <select name="sexo" required>
+                                <option value="" disabled <?= !sexoPacienteValido($formulario["sexo"] ?? null) ? "selected" : "" ?>>Selecciona el sexo</option>
                                 <option value="M" <?php echo ($formulario["sexo"] ?? "") === "M" ? "selected" : ""; ?>>Masculino</option>
                                 <option value="F" <?php echo ($formulario["sexo"] ?? "") === "F" ? "selected" : ""; ?>>Femenino</option>
-                                <option value="X" <?php echo ($formulario["sexo"] ?? "") === "X" ? "selected" : ""; ?>>Otro</option>
                             </select>
                         </label>
                         <label>Teléfono <span>Opcional</span>
@@ -173,15 +173,15 @@
             <div class="pacientes-section-heading">
                 <div>
                     <p class="pacientes-eyebrow">REGISTROS</p>
-                    <h2 id="tituloListaPacientes"><?= $verInactivos ? "Pacientes archivados" : "Pacientes registrados" ?></h2>
+                    <h2 id="tituloListaPacientes"><?= $verInactivos ? "Pacientes archivados" : ($filtros['estado'] === 'todos' ? "Todos los pacientes" : "Pacientes registrados") ?></h2>
                 </div>
                 <?php if (!$estaCreando): ?>
                     <a class="pacientes-edit" href="pacientes?nuevo=1">Agregar paciente</a>
                 <?php endif; ?>
-                <span class="pacientes-count"><?php echo count($pacientes); ?> pacientes</span>
+                <span class="pacientes-count"><?= (int)$listado['total'] ?> pacientes</span>
             </div>
 
-            <p><a href="pacientes<?= $verInactivos ? '' : '?vista=inactivos' ?>"><?= $verInactivos ? 'Ver activos' : 'Ver archivados' ?></a></p>
+            <?php $esDirectorioPaciente = true; require __DIR__.'/componentes/filtros_directorio.php'; ?>
             <div class="pacientes-table-wrap">
                 <table class="pacientes-table">
                     <thead>
@@ -190,7 +190,7 @@
                     <tbody>
                         <?php foreach ($pacientes as $paciente): ?>
                             <tr>
-                                <td data-label="Paciente"><strong><?php echo htmlspecialchars($paciente["nombres"] . " " . $paciente["apellidos"], ENT_QUOTES, "UTF-8"); ?></strong></td>
+                                <td data-label="Paciente"><strong><?php echo htmlspecialchars($paciente["nombres"] . " " . $paciente["apellidos"], ENT_QUOTES, "UTF-8"); ?></strong><small><?= $paciente['sexo'] === 'M' ? 'Masculino' : ($paciente['sexo'] === 'F' ? 'Femenino' : 'Dato anterior por revisar') ?> · <?= (int)$paciente['activo'] === 1 ? 'Activo' : 'Archivado' ?></small></td>
                                 <td data-label="DNI"><?php echo htmlspecialchars($paciente["dni"], ENT_QUOTES, "UTF-8"); ?></td>
                                 <td data-label="Usuario">
                                     <?php if (($paciente["usuario"] ?? "") !== ""): ?>
@@ -209,22 +209,23 @@
                                 </td>
                                 <td data-label="Registro"><?php echo htmlspecialchars(date("d/m/Y", strtotime($paciente["fecha_registro"])), ENT_QUOTES, "UTF-8"); ?></td>
                                 <td data-label="Acciones">
-                                    <?php if (!$verInactivos): ?><a class="pacientes-edit" href="pacientes?editar=<?= (int)$paciente['id'] ?>">Editar</a><?php endif; ?>
-                                    <a class="pacientes-edit" href="estado_perfil?tipo=paciente&amp;id=<?= (int)$paciente['id'] ?>"><?= $verInactivos ? 'Reactivar' : 'Archivar' ?></a>
+                                    <?php if ((int)$paciente['activo'] === 1): ?><a class="pacientes-edit" href="pacientes?editar=<?= (int)$paciente['id'] ?>">Editar</a><?php endif; ?>
+                                    <a class="pacientes-edit" href="estado_perfil?tipo=paciente&amp;id=<?= (int)$paciente['id'] ?>"><?= (int)$paciente['activo'] !== 1 ? 'Reactivar' : 'Archivar' ?></a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if (!$pacientes): ?>
-                            <tr><td colspan="6" class="pacientes-empty">No hay pacientes en esta lista.</td></tr>
+                            <tr><td colspan="6" class="pacientes-empty">No se encontraron pacientes con estos filtros.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
             </div>
+            <?php require __DIR__.'/componentes/paginacion_directorio.php'; ?>
         </section>
     </section>
 </main>
 <script src="js/javascript.js?v=20261124-usuarios" defer></script>
-<script src="js/consulta_dni.js" defer></script>
+<script src="js/consulta_dni.js?v=20261127-doctores" defer></script>
 <script src="js/password-admin.js?v=2" defer></script>
 </body>
 </html>

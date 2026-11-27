@@ -41,6 +41,7 @@ $tarjetas = [
 
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/ausencias-doctores.css">
+    <link rel="stylesheet" href="css/filtros-directorio.css">
 
 </head>
 
@@ -75,6 +76,7 @@ $tarjetas = [
     <?php endif; ?>
 
     <!-- TARJETAS -->
+    <p>Indicadores generales de ausencias, independientes de los filtros.</p>
 
     <div class="tarjetas ausencias-tarjetas">
 
@@ -241,6 +243,8 @@ $tarjetas = [
             <h2>📋 Ausencias registradas</h2>
         </div>
 
+        <?php require __DIR__.'/componentes/filtros_ausencias.php'; ?>
+
         <div class="ausencias-tabla">
 
             <table>
@@ -391,7 +395,7 @@ $tarjetas = [
 
                         <td colspan="8" class="mensaje-tabla-vacio">
 
-                            No existen ausencias registradas.
+                            No hay ausencias que coincidan con los filtros.
 
                         </td>
 
@@ -405,6 +409,11 @@ $tarjetas = [
 
         </div>
 
+        <div class="directorio-paginacion">
+            <?php if ($listado['pagina']>1): ?><button form="filtros-ausencias" name="pagina" value="<?= $listado['pagina']-1 ?>">Anterior</button><?php endif; ?>
+            <span>Página <?= (int)$listado['pagina'] ?> de <?= (int)$listado['paginas'] ?></span>
+            <?php if ($listado['pagina']<$listado['paginas']): ?><button form="filtros-ausencias" name="pagina" value="<?= $listado['pagina']+1 ?>">Siguiente</button><?php endif; ?>
+        </div>
     </section>
 
     <!-- CITAS AFECTADAS -->

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Administrar citas</title>
     <link rel="stylesheet" href="css/style.css?v=20261011-responsive">
+    <link rel="stylesheet" href="css/filtros-directorio.css?v=20261127">
 </head>
 <body class="page-reporte has-sidebar">
 <?php include dirname(__DIR__) . "/vistas/componentes/sidebar.php"; ?>
@@ -21,34 +22,39 @@
         </nav>
     </div>
 
-    <div class="filtros">
-        <h2>Filtrar citas</h2>
+    <?php $esc = static fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); ?>
+    <section class="directorio-filtros" aria-labelledby="tituloFiltrosCitas">
+        <h2 id="tituloFiltrosCitas">Buscar y filtrar citas</h2>
         <?php if ($filtrarFicha): ?>
-            <p>Citas futuras de la ficha seleccionada. <a href="estado_perfil?tipo=<?= $tipoFicha ?>&amp;id=<?= $idFicha ?>">Volver a la ficha</a></p>
+            <p>Citas futuras de la ficha seleccionada. <a href="estado_perfil?tipo=<?= $esc($tipoFicha) ?>&amp;id=<?= (int)$idFicha ?>">Volver a la ficha</a> · <a href="citas_admin">Ver todas las citas</a></p>
         <?php endif; ?>
-        <form method="GET" action="citas_admin">
-            <?php if ($filtrarFicha): ?>
-                <input type="hidden" name="tipo" value="<?= $tipoFicha ?>">
-                <input type="hidden" name="id" value="<?= $idFicha ?>">
-            <?php endif; ?>
-            <div class="campo">
-                <label for="estadoCitas">Estado</label>
-                <select id="estadoCitas" name="estado">
-                    <option value="">Todos los estados</option>
-                    <?php foreach ($etiquetasEstado as $valor => $etiqueta): ?>
-                        <option value="<?php echo htmlspecialchars($valor, ENT_QUOTES, "UTF-8"); ?>" <?php echo $estadoSeleccionado === $valor ? "selected" : ""; ?>><?php echo htmlspecialchars($etiqueta, ENT_QUOTES, "UTF-8"); ?></option>
-                    <?php endforeach; ?>
-                </select>
+        <form id="filtrosCitasAdmin" method="POST" action="<?= $esc($urlFiltros) ?>" autocomplete="off">
+            <input type="hidden" name="csrf_token" value="<?= $esc($_SESSION['csrf_token']) ?>">
+            <div class="directorio-filtros-grid">
+                <label>Paciente <input name="paciente" maxlength="100" value="<?= $esc($f['paciente']) ?>" placeholder="DNI, nombres o apellidos"></label>
+                <label>Doctor <input name="doctor" maxlength="100" value="<?= $esc($f['doctor']) ?>" placeholder="DNI, CMP o nombre"></label>
+                <label>Especialidad <select name="especialidad"><option value="">Todas</option>
+                    <?php foreach ($especialidades as $esp): ?><option value="<?= $esc($esp) ?>" <?= $f['especialidad']===$esp?'selected':'' ?>><?= $esc($esp) ?></option><?php endforeach; ?>
+                </select></label>
+                <?php foreach (['estado'=>['Estado de cita',$etiquetasEstado], 'modalidad'=>['Modalidad',FILTRO_MODALIDADES_CITAS], 'pago'=>['Estado financiero',FILTRO_PAGOS_CITAS]] as $k=>[$titulo,$opciones]): ?>
+                    <label><?= $esc($titulo) ?><select name="<?= $esc($k) ?>"><option value="">Todos</option>
+                    <?php foreach ($opciones as $valor=>$etiqueta): ?><option value="<?= $esc($valor) ?>" <?= $f[$k]===$valor?'selected':'' ?>><?= $esc($etiqueta) ?></option><?php endforeach; ?>
+                    </select></label>
+                <?php endforeach; ?>
+                <label>Desde <input type="date" name="desde" value="<?= $esc($f['desde']) ?>"></label>
+                <label>Hasta <input type="date" name="hasta" value="<?= $esc($f['hasta']) ?>"></label>
             </div>
-            <button type="submit">Aplicar filtro</button>
-            <a href="citas_admin" class="boton boton-limpiar">Limpiar</a>
+            <div class="directorio-filtros-acciones">
+                <button type="submit" name="pagina" value="1">Buscar</button>
+                <a href="<?= $esc($urlFiltros) ?>">Limpiar</a>
+            </div>
         </form>
-    </div>
+    </section>
 
     <div class="seccion">
         <div class="seccion-header">
             <h2><?php echo $estadoSeleccionado !== "" ? "Citas: " . htmlspecialchars($etiquetasEstado[$estadoSeleccionado], ENT_QUOTES, "UTF-8") : "Todas las citas"; ?></h2>
-            <span><?php echo $totalVisible; ?> resultado(s)</span>
+            <span><?= (int)$totalVisible ?> resultado(s). <?= count($listado['filas']) ?> en esta página.</span>
         </div>
         <div class="citas-admin-table-wrap">
             <table class="citas-admin-table">
@@ -67,7 +73,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <?php while ($cita = $resultadoCitas->fetch_assoc()): ?>
+                    <?php foreach ($listado['filas'] as $cita): ?>
                         <tr>
                             <td><?php echo date("d/m/Y", strtotime($cita["fecha"])); ?></td>
                             <td><?php echo htmlspecialchars(substr($cita["hora"], 0, 5), ENT_QUOTES, "UTF-8"); ?></td>
@@ -106,13 +112,18 @@
                                 <?php endif; ?>
                             </td>
                         </tr>
-                    <?php endwhile; ?>
+                    <?php endforeach; ?>
                     <?php if ($totalVisible === 0): ?>
-                        <tr><td colspan="10" class="mensaje-tabla-vacio">No hay citas para este estado.</td></tr>
+                        <tr><td colspan="10" class="mensaje-tabla-vacio">No hay citas que coincidan con los filtros.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
         </div>
+        <nav class="directorio-paginacion" aria-label="Paginación de citas">
+            <?php if ($listado['pagina']>1): ?><button type="submit" form="filtrosCitasAdmin" name="pagina" value="<?= $listado['pagina']-1 ?>">Anterior</button><?php endif; ?>
+            <span>Página <?= (int)$listado['pagina'] ?> de <?= (int)$listado['paginas'] ?></span>
+            <?php if ($listado['pagina']<$listado['paginas']): ?><button type="submit" form="filtrosCitasAdmin" name="pagina" value="<?= $listado['pagina']+1 ?>">Siguiente</button><?php endif; ?>
+        </nav>
     </div>
 </div>
 <script src="js/javascript.js" defer></script>

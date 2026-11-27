@@ -13,12 +13,17 @@ if (!isset($_SESSION["id"]) || !isset($_SESSION["rol"]) || (int)$_SESSION["rol"]
 if (empty($_SESSION["csrf_token"])) {
     $_SESSION["csrf_token"] = bin2hex(random_bytes(32));
 }
+header('Cache-Control: no-store');
+$esBusqueda = $_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? null) === 'buscar_directorio';
+if ($esBusqueda && (!is_string($_POST['csrf_token'] ?? null) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']))) {
+    http_response_code(403); exit('Solicitud no válida.');
+}
 $rol = 2;
 $paginaActiva = "doctores";
 $doctorId = filter_var($_GET['editar'] ?? 0, FILTER_VALIDATE_INT);
 if ($doctorId === false || $doctorId < 0) { http_response_code(400); exit("Doctor no válido."); }
 $editando = $doctorId > 0;
-$mostrarFormulario = $editando || ($_GET["nuevo"] ?? "") === "1" || $_SERVER["REQUEST_METHOD"] === "POST";
+$mostrarFormulario = $editando || ($_GET["nuevo"] ?? "") === "1" || ($_SERVER["REQUEST_METHOD"] === "POST" && !$esBusqueda);
 
 $verInactivos = ($_GET["vista"] ?? "") === "inactivos";
 $estadoListado = $verInactivos ? 0 : 1;
@@ -27,6 +32,7 @@ $tipoMensaje = "error";
 $usuarioRegistrado = null;
 $primerApellido = $segundoApellido = "";
 $formulario = [
+    "dni" => "",
     "nombres" => "",
     "apellidos" => "",
     "cmp" => "",
@@ -45,7 +51,7 @@ if ($mostrarFormulario) {
 }
 
 if ($editando) {
-    $stmtFicha = $conexion->prepare("SELECT nombres, apellidos, especialidad, cmp, telefono, correo,
+    $stmtFicha = $conexion->prepare("SELECT dni, nombres, apellidos, especialidad, cmp, telefono, correo,
         TIME_FORMAT(hora_inicio,'%H:%i') AS hora_inicio, TIME_FORMAT(hora_fin,'%H:%i') AS hora_fin,
         TIME_FORMAT(refrigerio_inicio,'%H:%i') AS refrigerio_inicio, TIME_FORMAT(refrigerio_fin,'%H:%i') AS refrigerio_fin
         FROM doctores WHERE id=? AND activo=1");
@@ -64,7 +70,7 @@ if (isset($_SESSION["mensaje_doctor"])) {
     unset($_SESSION["mensaje_doctor"], $_SESSION["usuario_registrado_doctor"]);
 }
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
+if ($_SERVER["REQUEST_METHOD"] === "POST" && !$esBusqueda) {
     $tipoMensaje = "error";
     if (!is_string($_POST["csrf_token"] ?? null) || !hash_equals($_SESSION["csrf_token"], $_POST["csrf_token"])) {
         http_response_code(403);
@@ -72,7 +78,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
     foreach ($formulario as $campo => $valor) {
-        $entrada = $_POST[$campo] ?? ($campo === "especialidad" ? "" : $valor);
+        $entrada = $_POST[$campo] ?? (in_array($campo, ["especialidad", "dni"], true) ? "" : $valor);
         $formulario[$campo] = is_string($entrada) ? trim($entrada) : "";
     }
     $password = $_POST["password"] ?? "";
@@ -103,7 +109,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $formulario["refrigerio_fin"] <= $formulario["hora_fin"];
     }
 
-    if ((!$editando && $base === "") || preg_match('/^.{1,100}$/usD', $formulario["apellidos"]) !== 1) {
+    if (!dniDoctorValido($formulario["dni"])) {
+        $mensaje = "El DNI del doctor debe tener exactamente 8 dígitos.";
+    } elseif ((!$editando && $base === "") || preg_match('/^.{1,100}$/usD', $formulario["apellidos"]) !== 1) {
         $mensaje = "Revisa los nombres y apellidos. Los apellidos juntos admiten hasta 100 caracteres.";
     } elseif (!in_array($formulario["especialidad"], $opcionesPorClave, true)) {
         $mensaje = "Selecciona una especialidad de la lista.";
@@ -115,6 +123,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         try {
             $conexion->begin_transaction();
 
+            $dni = $formulario["dni"];
             $nombres = $formulario["nombres"];
             $apellidos = $formulario["apellidos"];
             $cmp = $formulario["cmp"] !== "" ? $formulario["cmp"] : null;
@@ -128,14 +137,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             if ($editando) {
                 bloquearFichaDirectorio($conexion, $doctorId, 1);
-                $stmtDoctor = $conexion->prepare("UPDATE doctores SET nombres=?, apellidos=?, cmp=?, especialidad=?, telefono=?, correo=?,
+                $stmtDoctor = $conexion->prepare("UPDATE doctores SET dni=?, nombres=?, apellidos=?, cmp=?, especialidad=?, telefono=?, correo=?,
                     hora_inicio=?, hora_fin=?, refrigerio_inicio=?, refrigerio_fin=? WHERE id=? AND activo=1");
-                $stmtDoctor->bind_param("ssssssssssi", $nombres, $apellidos, $cmp, $especialidad, $telefono, $correo, $horaInicio, $horaFin, $refrigerioInicio, $refrigerioFin, $doctorId);
+                $stmtDoctor->bind_param("sssssssssssi", $dni, $nombres, $apellidos, $cmp, $especialidad, $telefono, $correo, $horaInicio, $horaFin, $refrigerioInicio, $refrigerioFin, $doctorId);
             } else {
                 $passwordHash = password_hash($password, PASSWORD_DEFAULT);
                 [$usuarioId, $usuario] = crearCuentaConUsuario($conexion, $base, $passwordHash, 1);
-                $stmtDoctor = $conexion->prepare("INSERT INTO doctores (usuario_id, nombres, apellidos, cmp, especialidad, telefono, correo, hora_inicio, hora_fin, refrigerio_inicio, refrigerio_fin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmtDoctor->bind_param("issssssssss", $usuarioId, $nombres, $apellidos, $cmp, $especialidad, $telefono, $correo, $horaInicio, $horaFin, $refrigerioInicio, $refrigerioFin);
+                $stmtDoctor = $conexion->prepare("INSERT INTO doctores (usuario_id, dni, nombres, apellidos, cmp, especialidad, telefono, correo, hora_inicio, hora_fin, refrigerio_inicio, refrigerio_fin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmtDoctor->bind_param("isssssssssss", $usuarioId, $dni, $nombres, $apellidos, $cmp, $especialidad, $telefono, $correo, $horaInicio, $horaFin, $refrigerioInicio, $refrigerioFin);
             }
             $stmtDoctor->execute();
             $idAuditoria = !$editando ? (int)$stmtDoctor->insert_id : (int)$doctorId;
@@ -164,13 +173,28 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $conexion->rollback();
             error_log("Error al guardar doctor. Código MySQL: " . $error->getCode());
             $mensaje = $error->getCode() === 1062
-                ? "Ya existe un registro con esos datos."
+                ? (str_contains($error->getMessage(), "uq_doctores_dni") ? "Ya existe un doctor registrado con ese DNI, incluso si está inactivo." : "Ya existe un registro con esos datos.")
                 : "No se pudo registrar el doctor. Revisa los datos e inténtalo de nuevo.";
         }
     }
 }
 
-$doctores = listarDoctores($conexion, $estadoListado);
+$errorFiltros = '';
+$filtros = filtrosDirectorio([], false, (string)$estadoListado);
+try {
+    if ($esBusqueda) $filtros = filtrosDirectorio($_POST, false, (string)$estadoListado);
+    $listado = buscarDirectorio($conexion, false, $filtros);
+    if ($esBusqueda) auditar($conexion, 'doctores', 'consultar', 'exitoso');
+} catch (DomainException $e) {
+    $errorFiltros = $e->getMessage();
+    $listado = ['filas'=>[], 'total'=>0, 'pagina'=>1, 'paginas'=>1];
+    if ($esBusqueda) auditar($conexion, 'doctores', 'consultar', 'fallido');
+}
+$doctores = $listado['filas'];
+$filtros['pagina'] = $listado['pagina'];
+$verInactivos = $filtros['estado'] === '0';
+$especialidadesFiltro = especialidadesDirectorio($conexion);
+
 $usuarioFicha = $editando ? usuarioFichaDoctor($conexion, $doctorId) : null;
 
 require dirname(__DIR__) . "/vistas/doctores.php";

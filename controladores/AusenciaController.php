@@ -4,14 +4,17 @@ session_start();
 require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 
 header("Cache-Control: no-store, private");
+header("Referrer-Policy: no-referrer");
 
 if (!isset($_SESSION["id"], $_SESSION["rol"])) {
+    if ($dbAud = auditoriaConexionOpcional()) auditar($dbAud,"ausencias","acceder","denegado");
     header("Location: index.php");
     exit;
 }
 
 // Acceso exclusivo del administrador.
-if (!in_array($_SESSION["rol"], [2, "2"], true)) {
+if (!auditoriaAdmin($_SESSION)) {
+    if ($dbAud = auditoriaConexionOpcional()) auditar($dbAud,"ausencias","acceder","denegado");
     http_response_code(403);
     exit("Acceso reservado al administrador.");
 }
@@ -20,6 +23,7 @@ require_once dirname(__DIR__) . "/config/Conexion.php";
 
 require_once dirname(__DIR__) .
     "/servicios/AusenciaService.php";
+require_once dirname(__DIR__)."/repositorios/FiltroAusenciasDAO.php";
 
 $usuarioId = (int)$_SESSION["id"];
 $rol = 2;
@@ -68,7 +72,8 @@ function identificadorAusencia(array $datos, string $campo): int
     return $id;
 }
 
-$metodo = $_SERVER["REQUEST_METHOD"];
+$metodo = $_SERVER["REQUEST_METHOD"] ?? "";
+$esBusqueda = $metodo === "POST" && ($_POST["accion"] ?? null) === "buscar_ausencias";
 
 // Procesar operaciones administrativas.
 if ($metodo === "POST") {
@@ -78,10 +83,12 @@ if ($metodo === "POST") {
     if (!is_string($token) ||
         !hash_equals($_SESSION["csrf_token"], $token)) {
 
+        if ($esBusqueda) auditar($conexion,"ausencias","consultar","denegado");
         http_response_code(403);
         exit("Solicitud no valida.");
     }
 
+    if (!$esBusqueda) {
     try {
 
         $accion = entradaAusencia($_POST, "accion");
@@ -151,9 +158,10 @@ if ($metodo === "POST") {
     // Evitar repetir operaciones al recargar.
     header("Location: ausencias_doctores.php", true, 303);
     exit;
+    }
 }
 
-if ($metodo !== "GET") {
+if ($metodo !== "GET" && !$esBusqueda) {
     header("Allow: GET, POST");
     http_response_code(405);
     exit("Metodo no permitido.");
@@ -172,43 +180,19 @@ try {
 
     $doctores = listarDoctoresAusenciasDAO($conexion);
 
-    $ausencias = listarAusenciasDAO($conexion);
+    $filtros = filtrosAusencias($esBusqueda ? $_POST : []);
+    $especialidadesFiltro = especialidadesDirectorio($conexion);
+    if ($filtros['especialidad']!=='' && !in_array($filtros['especialidad'],$especialidadesFiltro,true)) throw new DomainException('Especialidad no válida.');
+    $listado = buscarAusenciasFiltradas($conexion,$filtros,$hoy);
+    $ausencias = $listado['filas'];
+    $resumen = resumenAusenciasFiltradas($conexion,$hoy);
 
-    $resumen = [
-        "vigente" => 0,
-        "programada" => 0,
-        "finalizada" => 0,
-        "cancelada" => 0,
-        "citas_afectadas" => 0
-    ];
-
-    foreach ($ausencias as $ausencia) {
-
-        $estado = estadoAusencia($ausencia, $hoy);
-
-        $resumen[$estado]++;
-
-        $resumen["citas_afectadas"] +=
-            (int)$ausencia["citas_afectadas"];
-    }
-
-    // Consultar citas afectadas de una ausencia.
+    // Consultar por ID independiente de la página actual del listado.
     if (isset($_GET["ausencia"])) {
-
-        $ausenciaId = identificadorAusencia(
-            $_GET,
-            "ausencia"
-        );
-
-        foreach ($ausencias as $ausencia) {
-
-            if ((int)$ausencia["id"] === $ausenciaId) {
-                $ausenciaSeleccionada = $ausencia;
-                break;
-            }
-        }
-
+        $ausenciaId = identificadorAusencia($_GET,"ausencia");
+        $ausenciaSeleccionada = detalleAusenciaFiltrada($conexion,$ausenciaId);
         if ($ausenciaSeleccionada === null) {
+            auditar($conexion,"ausencias","consultar","fallido");
             http_response_code(404);
             exit("Ausencia no encontrada.");
         }
@@ -219,13 +203,17 @@ try {
         );
     }
 
-} catch (InvalidArgumentException $e) {
+    auditar($conexion,"ausencias","consultar");
 
+} catch (InvalidArgumentException | DomainException $e) {
+
+    auditar($conexion,"ausencias","consultar","fallido");
     http_response_code(400);
     exit("Solicitud no valida.");
 
 } catch (Throwable $e) {
 
+    auditar($conexion,"ausencias","consultar","fallido");
     error_log(
         "Error al consultar ausencias. Codigo: " .
         $e->getCode()
