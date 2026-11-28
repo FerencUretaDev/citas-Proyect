@@ -1,6 +1,7 @@
 <?php
 
 session_start();
+header("Cache-Control: no-store, private");
 
 include dirname(__DIR__) . "/config/Conexion.php";
 require_once dirname(__DIR__) . "/middlewares/SesionActiva.php";
@@ -70,6 +71,7 @@ if (
 
 $sqlDoctor = "
     SELECT
+        especialidad,
         hora_inicio,
         hora_fin,
         refrigerio_inicio,
@@ -308,9 +310,39 @@ while ($inicio <= $limiteUltimaCita) {
    RESPUESTA
 ===================================================== */
 
+// Consulta informativa. El servicio de reserva repite esta comprobación bajo bloqueo.
+$prioridadListaEspera = false;
+try {
+    require_once dirname(__DIR__).'/servicios/PrioridadListaEsperaService.php';
+    [, $mapaPrioridad] = cargarCatalogoEspecialidades($conexion);
+    $especialidadPrioridad = $mapaPrioridad[claveEspecialidad($doctor['especialidad'])] ?? $doctor['especialidad'];
+    $colaPrioridad = candidatosPrioridadEspera($conexion,$doctor_id,$fecha,$especialidadPrioridad,$mapaPrioridad);
+    $antesPrioridad=count($horariosDisponibles);
+    $horariosDisponibles=array_values(array_filter($horariosDisponibles,fn($h)=>permiteTurnoPrioridadEspera($colaPrioridad,$paciente_id,$h)));
+    $prioridadListaEspera=$antesPrioridad>0 && !$horariosDisponibles;
+} catch (Throwable $e) {
+    error_log('Consulta prioridad lista de espera: '.get_class($e).' / '.$e->getCode());
+    header('Content-Type: application/json; charset=UTF-8');
+    http_response_code(503);
+    echo json_encode(['error'=>'No se pudo verificar la prioridad. Vuelve a consultar los horarios.']);
+    exit;
+}
+// Solo ofrecer la inscripción cuando el motivo sea una agenda realmente llena.
+// El POST vuelve a validar bajo bloqueo; un fallo en esta consulta no afecta las reservas.
+$listaEsperaDisponible = false;
+if (!$horariosDisponibles && !$prioridadListaEspera) {
+    try {
+        require_once dirname(__DIR__).'/servicios/ListaEsperaService.php';
+        $listaEsperaDisponible = puedeMostrarInscripcionListaEspera($conexion,$paciente_id,$doctor_id,$doctor,$fecha);
+    } catch (Throwable $e) {
+        error_log('Consulta lista de espera: '.get_class($e).' / '.$e->getCode());
+    }
+}
 header("Content-Type: application/json");
 
 echo json_encode([
+    "lista_espera_disponible" => $listaEsperaDisponible,
+    "prioridad_lista_espera" => $prioridadListaEspera,
     "horarios" => $horariosDisponibles,
     "hora_inicio" => $horaInicio,
     "hora_fin" => $horaFin,

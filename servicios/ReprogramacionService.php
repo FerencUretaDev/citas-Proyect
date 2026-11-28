@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/ReservaService.php';
+require_once __DIR__ . '/PrioridadListaEsperaService.php';
 require_once dirname(__DIR__).'/repositorios/PagoDAO.php';
 require_once dirname(__DIR__) . '/repositorios/ReprogramacionDAO.php';
 
@@ -122,6 +123,7 @@ if (doctorTieneAusenciaDAO(
         return [];
     }
     $ocupadas = horasOcupadasReprogramacionDAO($conexion, $citaId, $doctorId, $pacienteId, $fecha);
+    $cola = candidatosPrioridadEspera($conexion,$doctorId,$fecha,$especialidad,$opcionesPorClave,false,$pacienteId,$citaId);
     $disponibles = [];
     foreach (turnosValidosReprogramacion($doctor, $fecha) as $hora) {
         if (esMismoTurnoReprogramacion($cita, $doctorId, $fecha, $hora) || conflictoReserva($restricciones, $hora) !== null) {
@@ -132,7 +134,7 @@ if (doctorTieneAusenciaDAO(
                 continue 2;
             }
         }
-        $disponibles[] = $hora;
+        if (permiteTurnoPrioridadEspera($cola,$pacienteId,$hora)) $disponibles[] = $hora;
     }
     return $disponibles;
 }
@@ -214,6 +216,11 @@ if (doctorTieneAusenciaDAO(
         if (existeCruceReserva($conexion, $doctorId, $pacienteId, $fecha, $hora, $citaId)) {
             throw new DomainException('Ese turno ya está reservado. Selecciona otro.', 409);
         }
+        $cola = candidatosPrioridadEspera($conexion,$doctorId,$fecha,$especialidad,$opcionesPorClave,true,$pacienteId,$citaId);
+        $prioritario = primerCompatiblePrioridadEspera($cola,$hora);
+        if ($prioritario && (int)$prioritario['paciente_id'] !== $pacienteId) {
+            throw new DomainException('El turno tiene prioridad para otro paciente de la lista de espera.',409);
+        }
         // Revalidar el tiempo después de adquirir todos los bloqueos.
         $ahora = ahoraReprogramacion();
         if (fechaHoraReprogramacion($fecha, $hora) <= $ahora || ($rol === 0 && !puedeReprogramarCitaPaciente($cita, $ahora))) {
@@ -222,10 +229,14 @@ if (doctorTieneAusenciaDAO(
         if (!actualizarCitaReprogramacionDAO($conexion, $citaId, $doctorId, $fecha, $hora)) {
             throw new DomainException('No se pudo actualizar la cita.', 409);
         }
+        $desvinculada=desvincularEsperaReprogramada($conexion,$citaId,$doctorId,$fecha);
+        if ($prioritario) vincularReservaPrioridadEspera($conexion,(int)$prioritario['id'],$pacienteId,$doctorId,$fecha,$citaId);
         if (!$conexion->commit()) {
             throw new RuntimeException('No se pudo confirmar la transacción.');
         }
         $transaccion = false;
+        if ($prioritario) auditar($conexion,'lista_espera','reservar','exitoso','solicitud_espera',(int)$prioritario['id']);
+        if ($desvinculada!==null) auditar($conexion,'lista_espera','desvincular','exitoso','solicitud_espera',$desvinculada);
         return [true, 'Cita reprogramada correctamente.', 200];
     } catch (Throwable $error) {
         if ($transaccion) {

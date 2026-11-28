@@ -6,6 +6,7 @@ function auditoriaCatalogo(): array {
         'pacientes'=>['consultar','registrar','editar','archivar','reactivar','cambiar_password'],
         'doctores'=>['consultar','registrar','editar','desactivar','reactivar','cambiar_password'],
         'citas'=>['consultar','acceder','reservar','cancelar','reprogramar','confirmar','cambiar_estado'],
+        'lista_espera'=>['acceder','consultar','inscribir','cancelar','reservar','desvincular','vencer'],
         'ausencias'=>['registrar','cancelar','consultar','acceder'],
         'pagos'=>['acceder','crear_orden','verificar','cancelar','acreditar','estado_cancelado','estado_rechazado','estado_revision','estado_reembolsado','estado_en_proceso','estado_pendiente','estado_expirado'],
         'historia_clinica'=>['registrar_atencion','consultar_resumen','consultar_listado','acceder'],
@@ -21,7 +22,7 @@ function auditoriaId($v): ?int {
 function auditoriaRol($v): ?int { return in_array($v,[0,1,2,'0','1','2'],true)?(int)$v:null; }
 function auditoriaEvento(array $actor,string $modulo,string $accion,string $resultado,?string $entidad=null,?int $id=null): array {
     $catalogo=auditoriaCatalogo();
-    if (!in_array($accion,$catalogo[$modulo]??[],true)||!in_array($resultado,['exitoso','fallido','denegado'],true)||($entidad!==null&&!in_array($entidad,['usuario','paciente','doctor','cita','ausencia','pago'],true))) throw new InvalidArgumentException('Evento de auditoría no permitido.');
+    if (!in_array($accion,$catalogo[$modulo]??[],true)||!in_array($resultado,['exitoso','fallido','denegado'],true)||($entidad!==null&&!in_array($entidad,['usuario','paciente','doctor','cita','ausencia','pago','solicitud_espera'],true))) throw new InvalidArgumentException('Evento de auditoría no permitido.');
     $usuario=auditoriaId($actor['id']??null);
     return [$usuario,$usuario===null?null:auditoriaRol($actor['rol']??null),$modulo,$accion,$entidad,$entidad===null?null:auditoriaId($id),$resultado];
 }

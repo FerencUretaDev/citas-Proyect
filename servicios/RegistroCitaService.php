@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/ReservaService.php';
+require_once __DIR__ . '/PrioridadListaEsperaService.php';
 require_once dirname(__DIR__) . '/repositorios/TarifaDAO.php';
 require_once dirname(__DIR__) . '/repositorios/PagoDAO.php';
 
@@ -156,6 +157,14 @@ function registrarCita(mysqli $conexion, int $paciente_id, int $doctor_id, strin
                            INSERTAR CITA
                         ============================= */
 
+                        // Prioridad validada bajo el mismo bloqueo del doctor que la reserva.
+                        $cola = candidatosPrioridadEspera($conexion,$doctor_id,$fecha,$especialidadSeleccionada,$opcionesPorClave,true,$paciente_id);
+                        $prioritario = primerCompatiblePrioridadEspera($cola,$hora);
+                        if ($prioritario && (int)$prioritario['paciente_id'] !== $paciente_id) {
+                            $conexion->rollback();
+                            return ["El turno tiene prioridad para otro paciente de la lista de espera. Consulta otro horario.", "error"];
+                        }
+
                         // La tarifa se obtiene del servidor; no se confía en el valor del formulario.
                         $precioVigente = obtenerTarifaCitaDAO($conexion, $modalidad);
                         if ($precioVigente === null) {
@@ -173,7 +182,9 @@ function registrarCita(mysqli $conexion, int $paciente_id, int $doctor_id, strin
                             $citaId = (int)$citaId;
                             if ($citaId <= 0) throw new RuntimeException('Identificador de cita no disponible.');
                             nuevoPagoCitaDAO($conexion, $citaId, $precioVigente);
+                            if ($prioritario) vincularReservaPrioridadEspera($conexion,(int)$prioritario['id'],$paciente_id,$doctor_id,$fecha,$citaId);
                             if (!$conexion->commit()) throw new RuntimeException('No se pudo confirmar la reserva.');
+                            if ($prioritario) auditar($conexion,'lista_espera','reservar','exitoso','solicitud_espera',(int)$prioritario['id']);
                             return ["Reserva pendiente de pago.", "success", $citaId];
 
                         } else {

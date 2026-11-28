@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let controlador;
     let turnos = new Set();
     let enviando = false;
+    let agendaLlena = false;
+    const ofertaEspera = $('ofertaListaEspera'), botonEspera = $('btnListaEspera'), formEspera = $('formListaEspera');
     function actualizarResumen() {
         const opcion = doctor.options[doctor.selectedIndex];
         const modalidad = form.querySelector('input[name="modalidad"]:checked');
@@ -28,6 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (hora.value) partes.push(hora.value.slice(0,5));
         $('reservaResumen').textContent = doctor.value && fecha.value && hora.value ? partes.join(' · ') : (partes.length ? partes.join(' · ') + ' · Completa los datos pendientes.' : 'Completa los tres pasos para confirmar.');
         $('fechaElegida').textContent = fecha.value ? 'Fecha elegida: ' + fechaTexto(fecha.value) : 'Selecciona un día para ver los horarios.';
+        ofertaEspera.hidden = !agendaLlena;
+        botonEspera.disabled = enviando || !agendaLlena || !precio || !doctor.value || !fecha.value;
         confirmar.disabled = enviando || !precio || !especialidad.value || !doctor.value || !fecha.value || !turnos.has(hora.value);
     }
     function estado(texto, tipo = '') {
@@ -47,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = ++secuencia;
         controlador?.abort();
         controlador = undefined;
+        agendaLlena = false;
         turnos = new Set(); hora.value = ''; lista.replaceChildren(); lista.setAttribute('aria-busy','false');
         actualizarResumen();
         if (!doctor.value || !fecha.value || !fecha.checkValidity()) {
@@ -77,6 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (datos.error || !respuesta.ok) {estado(typeof datos.error === 'string' ? datos.error : 'No se pudieron consultar los horarios. Intenta nuevamente.', 'error'); return;}
             const horarios = Array.isArray(datos.horarios) ? datos.horarios.filter(v => typeof v === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(v)) : [];
             turnos = new Set(horarios.filter(valor => !coincide(valor)));
+            agendaLlena = !turnos.size && datos.lista_espera_disponible === true;
+            actualizarResumen();
+            if (agendaLlena) {estado('La agenda del doctor está llena para esta fecha.'); return;}
+            if (!turnos.size && datos.prioridad_lista_espera === true) {estado('Los cupos disponibles tienen prioridad para pacientes de la lista de espera. Selecciona otra fecha o profesional.'); return;}
             if (!turnos.size) {estado(ocupadas.length ? 'No hay turnos compatibles con tus citas de ese día. Selecciona otra fecha o profesional.' : 'No hay horarios disponibles para esta fecha. Elige otro día.'); return;}
             estado(`${turnos.size} ${turnos.size === 1 ? 'turno disponible' : 'turnos disponibles'}. Selecciona una hora.` + (ocupadas.length ? ' Se excluyen los cruces con tus otras citas.' : ''));
             for (const valor of turnos) {
@@ -125,6 +134,17 @@ document.addEventListener('DOMContentLoaded', () => {
         $('calendarioVisor').hidden=true;
         document.querySelector('.reserva-leyenda').hidden=true;
     }
+    botonEspera.addEventListener('click', () => {
+        if (botonEspera.disabled || !agendaLlena || enviando) return;
+        const modalidad = form.querySelector('input[name="modalidad"]:checked');
+        if (!modalidad || modalidad.disabled) return;
+        formEspera.elements.namedItem('doctor_id').value = doctor.value;
+        formEspera.elements.namedItem('fecha').value = fecha.value;
+        formEspera.elements.namedItem('modalidad').value = modalidad.value;
+        enviando = true;
+        actualizarResumen();
+        formEspera.requestSubmit();
+    });
     form.addEventListener('submit', e => {
         if (confirmar.disabled || enviando || !$('precioMostrado').value || !turnos.has(hora.value)) {e.preventDefault(); return;}
         enviando=true; confirmar.disabled=true; confirmar.textContent='Preparando pago…';

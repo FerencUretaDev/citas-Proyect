@@ -6,6 +6,7 @@ $menusPorRol = [
     ["panel", "panel", "⌂", "Inicio"],
     ["sacar_cita", "sacar_cita", "📅", "Sacar cita"],
     ["citas", "panel", "📋", "Mis citas"],
+    ["lista_espera", "lista_espera.php", "⌛", "Mi lista de espera"],
     ["historial_citas", "historial_citas", "🕒", "Historial de citas"],
     ["historia_clinica", "historia_clinica.php", "📋", "Mi historia clínica"]
     ],
@@ -21,6 +22,7 @@ $menusPorRol = [
     ["pacientes", "pacientes", "👥", "Pacientes"],
     ["doctores", "doctores", "👨‍⚕️", "Doctores"],
     ["ausencias_doctores", "ausencias_doctores", "📆", "Ausencias"],
+    ["lista_espera_admin", "lista_espera_admin.php", "⌛", "Lista de espera"],
     ["auditoria", "auditoria.php", "🛡", "Auditoría"]
     ]
 ];

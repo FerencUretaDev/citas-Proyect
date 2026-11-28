@@ -19,6 +19,7 @@ $precioInicial = $tarifas[$modalidadSeleccionada] ?? '';
 <main class="reserva-shell">
     <nav class="reserva-top" aria-label="Navegación de reserva">
         <a href="panel" class="reserva-back"><span aria-hidden="true">←</span> Volver al panel</a>
+        <a href="lista_espera.php" class="reserva-back">Mi lista de espera</a>
         <span class="reserva-brand"><span aria-hidden="true">+</span> Sistema de Citas Médicas</span>
     </nav>
     <header class="reserva-hero">
@@ -119,6 +120,10 @@ foreach ($doctores as $doctor) {
                 <header class="reserva-step"><span class="reserva-numero" aria-hidden="true">3</span><div><h2 id="pasoHorario">Elige tu horario</h2><p>Turnos de 30 minutos</p></div></header>
                 <div id="mensajeHorarios" role="status" aria-live="polite">Selecciona un doctor y una fecha para consultar los turnos.</div>
                 <div id="listaHorarios" class="horarios" role="group" aria-label="Horarios disponibles" aria-busy="false"></div>
+                <div id="ofertaListaEspera" hidden>
+                    <p class="reserva-nota">La agenda está llena. Puedes inscribirte sin reservar ni pagar una cita.</p>
+                    <button type="button" id="btnListaEspera" class="reserva-confirmar" disabled>Unirme a la lista de espera</button>
+                </div>
                 <input type="hidden" name="hora" id="hora">
                 <div class="reserva-field reserva-motivo">
                     <label for="motivo">Motivo de consulta <span>Opcional</span></label>
@@ -143,10 +148,17 @@ foreach ($doctores as $doctor) {
         </section>
         <noscript><p class="reserva-aviso error">Activa JavaScript para consultar los horarios disponibles.</p></noscript>
     </form>
+    <form id="formListaEspera" method="POST" action="lista_espera.php" hidden>
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="accion" value="inscribir">
+        <input type="hidden" name="doctor_id">
+        <input type="hidden" name="fecha">
+        <input type="hidden" name="modalidad">
+    </form>
     <p class="reserva-pie">La disponibilidad y la tarifa se verifican en el servidor. Continuarás a Mercado Pago en modo de prueba.</p>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
-<script src="js/reserva-moderna.js?v=4-pagos" defer></script>
+<script src="js/reserva-moderna.js?v=6-prioridad-espera" defer></script>
 </body>
 </html>
