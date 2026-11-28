@@ -23,6 +23,7 @@ $menusPorRol = [
     ["doctores", "doctores", "👨‍⚕️", "Doctores"],
     ["ausencias_doctores", "ausencias_doctores", "📆", "Ausencias"],
     ["lista_espera_admin", "lista_espera_admin.php", "⌛", "Lista de espera"],
+    ["recuperacion_admin", "recuperacion_admin.php", "🔔", "Recuperación" . (isset($recuperacionesPendientes) ? " (" . (int)$recuperacionesPendientes . ")" : "")],
     ["auditoria", "auditoria.php", "🛡", "Auditoría"]
     ]
 ];

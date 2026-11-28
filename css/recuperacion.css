@@ -1,0 +1,175 @@
+* {
+    box-sizing: border-box;
+}
+
+body.recuperacion-page {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #173b54;
+    background: linear-gradient(135deg, #e4f3f7, #edf2fa);
+}
+
+.recuperacion-card {
+    width: 100%;
+    max-width: 480px;
+    background: white;
+    padding: clamp(24px, 6vw, 38px);
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(18, 63, 88, .14);
+}
+
+.recuperacion-logo {
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 22px;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    font-size: 36px;
+    font-weight: bold;
+    color: white;
+    background: linear-gradient(135deg, #16a0a3, #176cb1);
+}
+
+h1 {
+    font-size: 27px;
+    text-align: center;
+    margin: 0 0 12px;
+}
+
+.subtitulo {
+    text-align: center;
+    color: #64748b;
+    line-height: 1.5;
+    margin-bottom: 28px;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+input {
+    width: 100%;
+    padding: 15px;
+    border: 1px solid #cbdce5;
+    border-radius: 12px;
+    background: #f8fafc;
+    font: inherit;
+}
+
+input:focus {
+    outline: 2px solid #16a0a3;
+    outline-offset: 2px;
+}
+
+button {
+    width: 100%;
+    margin-top: 22px;
+    padding: 15px;
+    border: 0;
+    border-radius: 12px;
+    background: linear-gradient(110deg, #087f8c, #176cb1);
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    filter: brightness(1.08);
+}
+
+.informacion {
+    margin-top: 24px;
+    padding: 15px;
+    border-radius: 12px;
+    background: #eef7f8;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.mensaje {
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.exito {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.error {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.volver {
+    display: block;
+    margin-top: 24px;
+    text-align: center;
+    color: #087f8c;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+footer {
+    text-align: center;
+    margin-top: 24px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+/* MEJORA 03 - Ajuste vertical responsive */
+body.recuperacion-page {
+    height: auto;
+    justify-content: flex-start;
+    overflow-y: auto;
+}
+
+.recuperacion-card {
+    flex-shrink: 0;
+    margin-top: auto;
+}
+
+body.recuperacion-page footer {
+    flex-shrink: 0;
+    margin-bottom: auto;
+}
+
+
+/* MEJORA 03 - Desplazamiento vertical de formularios */
+body.recuperacion-page {
+    display: block;
+    height: auto;
+    min-height: 100vh;
+    padding: 24px 16px;
+    overflow-y: auto;
+}
+
+body.recuperacion-page .recuperacion-card {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 480px;
+}
+
+body.recuperacion-page footer {
+    margin: 24px auto 0;
+    text-align: center;
+}
+
+@media (max-width: 560px) {
+    body.recuperacion-page {
+        padding: 12px;
+    }
+}

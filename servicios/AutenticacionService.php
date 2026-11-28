@@ -6,7 +6,15 @@ function autenticarUsuario(mysqli $conexion, string $usuario, string $password):
     if ($datos === null) { return null; }
     if (!password_verify($password, $datos['password'])) {
         if (!hash_equals(hash('sha256', $password), $datos['password'])) { return null; }
-        actualizarHashUsuario($conexion, (int)$datos['id'], password_hash($password, PASSWORD_DEFAULT));
+        if (!actualizarHashUsuario(
+            $conexion,
+            (int)$datos['id'],
+            password_hash($password, PASSWORD_DEFAULT),
+            $datos['password'],
+            (int)$datos['version_sesion']
+        )) {
+            return null;
+        }
     }
     unset($datos['password']);
     return $datos;

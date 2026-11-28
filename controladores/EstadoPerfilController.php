@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once dirname(__DIR__).'/middlewares/SeguridadSesion.php';
+iniciarSesionSegura();
 require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 if (!isset($_SESSION['id']) || !in_array($_SESSION['rol'] ?? null, [2, '2'], true)) {
     http_response_code(403);

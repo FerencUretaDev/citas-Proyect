@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once dirname(__DIR__).'/middlewares/SeguridadSesion.php';
+iniciarSesionSegura();
 require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 date_default_timezone_set('America/Lima');
 require dirname(__DIR__).'/config/Conexion.php';

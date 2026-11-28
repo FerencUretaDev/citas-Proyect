@@ -126,7 +126,16 @@ function actualizarPasswordFichaDirectorio(mysqli $conexion, int $fichaId, int $
         throw new DomainException("No existe una cuenta vinculada con el rol correcto. No se guardaron los cambios.");
     }
     $usuarioId = (int)$cuenta["id"];
-    $stmt = $conexion->prepare("UPDATE usuarios SET password = ? WHERE id = ? AND rol = ?");
+    $stmt = $conexion->prepare("UPDATE usuarios u
+LEFT JOIN tokens_cuenta t
+    ON t.usuario_id = u.id
+    AND t.finalidad IN ('recuperar_asistencia','recuperar_password')
+    AND t.fecha_uso IS NULL
+    AND t.fecha_revocacion IS NULL
+SET u.password = ?,
+    u.version_sesion = u.version_sesion + 1,
+    t.fecha_revocacion = UTC_TIMESTAMP()
+WHERE u.id = ? AND u.rol = ?");
     try {
         $stmt->bind_param("sii", $hash, $usuarioId, $rol);
         $stmt->execute();

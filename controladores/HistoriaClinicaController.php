@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once dirname(__DIR__).'/middlewares/SeguridadSesion.php';
+iniciarSesionSegura();
 require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 header('Cache-Control: no-store, private');
 header('Referrer-Policy: no-referrer');

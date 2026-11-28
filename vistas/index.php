@@ -260,16 +260,15 @@
             </div>
 
 
+
+
+
             <!-- RECUPERAR -->
-
             <div class="opciones">
-
-                <a href="#">
+                <a href="recuperar_password.php">
                     ¿Olvidaste tu contraseña?
                 </a>
-
             </div>
-
 
             <!-- INGRESAR -->
 

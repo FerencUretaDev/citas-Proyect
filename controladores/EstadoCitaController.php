@@ -1,6 +1,7 @@
 <?php
 
-session_start();
+require_once dirname(__DIR__).'/middlewares/SeguridadSesion.php';
+iniciarSesionSegura();
 require_once dirname(__DIR__).'/servicios/AuditoriaService.php';
 include dirname(__DIR__) . "/config/Conexion.php";
 require_once dirname(__DIR__) . "/middlewares/SesionActiva.php";

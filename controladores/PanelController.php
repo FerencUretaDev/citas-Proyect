@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once dirname(__DIR__).'/middlewares/SeguridadSesion.php';
+iniciarSesionSegura();
 include dirname(__DIR__) . "/config/Conexion.php";
 require_once dirname(__DIR__) . "/middlewares/SesionActiva.php";
 verificarPerfilActivo($conexion);
@@ -46,6 +47,17 @@ $citasProximosSieteDias = 0;
 ===================================================== */
 
 if ($rol == 2) {
+
+    require_once dirname(__DIR__).'/repositorios/RecuperacionDAO.php';
+
+    $recuperacionesPendientes = null;
+
+    try {
+        $recuperacionesPendientes =
+            contarRecuperacionesPendientesDAO($conexion);
+    } catch (Throwable $e) {
+        error_log('Contador de recuperacion no disponible.');
+    }
 
     $sqlResumen = "
         SELECT

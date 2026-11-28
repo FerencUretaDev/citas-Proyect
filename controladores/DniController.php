@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once dirname(__DIR__).'/middlewares/SeguridadSesion.php';
+iniciarSesionSegura(true);
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 

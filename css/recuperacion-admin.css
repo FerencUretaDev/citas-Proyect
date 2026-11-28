@@ -1,0 +1,190 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #edf4f8;
+    color: #173b54;
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.contenedor {
+    max-width: 1500px;
+    margin: auto;
+    padding: clamp(16px, 4vw, 36px);
+}
+
+.volver {
+    color: #087f8c;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+h1 {
+    font-size: clamp(24px, 4vw, 32px);
+}
+
+.resumen {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    margin: 24px 0;
+    border-left: 5px solid #d97706;
+    box-shadow: 0 8px 20px #173b5410;
+}
+
+.resumen strong {
+    display: block;
+    font-size: 36px;
+    color: #b45309;
+    margin-top: 8px;
+}
+
+.tarjeta {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 20px #173b5410;
+}
+
+.tabla-scroll {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+th, td {
+    padding: 16px 12px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+th {
+    background: #eaf2f8;
+}
+
+.estado {
+    display: inline-block;
+    padding: 7px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.pendiente {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.en_atencion {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.resuelta {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.rechazada {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.whatsapp {
+    display: inline-block;
+    padding: 11px 14px;
+    background: #16834e;
+    color: white;
+    text-decoration: none;
+    border-radius: 9px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.whatsapp:hover {
+    background: #12683e;
+}
+
+.nota {
+    color: #64748b;
+    line-height: 1.6;
+}
+
+/* MEJORA 03 - Acciones administrativas */
+.acciones-recuperacion {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.acciones-recuperacion button {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-atender {
+    background: #176cb1;
+    color: white;
+}
+
+.btn-rechazar {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.mensaje-admin {
+    background: #eaf2f8;
+    color: #173b54;
+    border-radius: 10px;
+    padding: 14px;
+}
+
+
+/* MEJORA 03 - Generacion de codigo */
+.form-generar-codigo {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 210px;
+    max-width: 280px;
+    padding: 14px;
+    margin: 12px 0;
+    background: #f1f5f9;
+    border-radius: 12px;
+}
+
+.verificar-identidad {
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.form-generar-codigo input[type="password"] {
+    width: 100%;
+    margin-top: 6px;
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+}
+
+.btn-generar {
+    background: #176cb1;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.form-generar-codigo small {
+    color: #64748b;
+}

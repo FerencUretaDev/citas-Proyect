@@ -2,7 +2,7 @@
 require_once dirname(__DIR__).'/repositorios/AuditoriaDAO.php';
 function auditoriaCatalogo(): array {
     return [
-        'seguridad'=>['iniciar_sesion','cerrar_sesion','perfil_inactivo'],
+        'seguridad'=>['iniciar_sesion','cerrar_sesion','perfil_inactivo','solicitar_recuperacion','atender_recuperacion','rechazar_recuperacion','generar_codigo_recuperacion','restablecer_password'],
         'pacientes'=>['consultar','registrar','editar','archivar','reactivar','cambiar_password'],
         'doctores'=>['consultar','registrar','editar','desactivar','reactivar','cambiar_password'],
         'citas'=>['consultar','acceder','reservar','cancelar','reprogramar','confirmar','cambiar_estado'],
@@ -22,7 +22,7 @@ function auditoriaId($v): ?int {
 function auditoriaRol($v): ?int { return in_array($v,[0,1,2,'0','1','2'],true)?(int)$v:null; }
 function auditoriaEvento(array $actor,string $modulo,string $accion,string $resultado,?string $entidad=null,?int $id=null): array {
     $catalogo=auditoriaCatalogo();
-    if (!in_array($accion,$catalogo[$modulo]??[],true)||!in_array($resultado,['exitoso','fallido','denegado'],true)||($entidad!==null&&!in_array($entidad,['usuario','paciente','doctor','cita','ausencia','pago','solicitud_espera'],true))) throw new InvalidArgumentException('Evento de auditoría no permitido.');
+    if (!in_array($accion,$catalogo[$modulo]??[],true)||!in_array($resultado,['exitoso','fallido','denegado'],true)||($entidad!==null&&!in_array($entidad,['usuario','paciente','doctor','cita','ausencia','pago','solicitud_espera','solicitud_recuperacion'],true))) throw new InvalidArgumentException('Evento de auditoría no permitido.');
     $usuario=auditoriaId($actor['id']??null);
     return [$usuario,$usuario===null?null:auditoriaRol($actor['rol']??null),$modulo,$accion,$entidad,$entidad===null?null:auditoriaId($id),$resultado];
 }

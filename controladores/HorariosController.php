@@ -1,6 +1,7 @@
 <?php
 
-session_start();
+require_once dirname(__DIR__).'/middlewares/SeguridadSesion.php';
+iniciarSesionSegura(true);
 header("Cache-Control: no-store, private");
 
 include dirname(__DIR__) . "/config/Conexion.php";

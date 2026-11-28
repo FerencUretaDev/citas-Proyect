@@ -17,6 +17,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_SESSION["id"] = $datos["id"];
         $_SESSION["usuario"] = $datos["usuario"];
         $_SESSION["rol"] = (int)$datos["rol"];
+        $_SESSION["version_sesion"] = (int)$datos["version_sesion"];
         auditar($conexion,"seguridad","iniciar_sesion","exitoso","usuario",(int)$datos["id"]);
         header("Location: panel");
         exit;
