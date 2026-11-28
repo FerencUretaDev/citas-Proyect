@@ -13,7 +13,8 @@
 
 
 
-    <link rel="stylesheet" href="css/style.css?v=20261011-responsive">
+    <link rel="stylesheet" href="css/style.css?v=mejora12-login-v2">
+    <link rel="stylesheet" href="css/registro-paciente.css?v=12-1">
 </head>
 
 
@@ -283,6 +284,11 @@
 
 
         </form>
+
+        <div class="registro-login">
+            ¿Todavía no tienes una cuenta?
+            <a href="registro_paciente.php">Registrarme como paciente</a>
+        </div>
 
 
         <div class="divisor">

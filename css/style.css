@@ -5237,3 +5237,42 @@ body.page-panel[data-user-role="0"] .tarjeta-info h3 {
         grid-column: 1 / -1;
     }
 }
+
+
+/* MEJORA 12 - Correccion responsive del login */
+body.page-login {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    height: auto;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: 24px 0 18px;
+    overflow-y: auto;
+}
+
+body.page-login .login-wrapper {
+    flex-shrink: 0;
+    margin: auto;
+}
+
+body.page-login .footer {
+    position: static;
+    flex-shrink: 0;
+    width: 100%;
+    margin: 20px auto 0;
+    padding: 8px 16px;
+    text-align: center;
+}
+
+@media (max-width: 560px) {
+    body.page-login {
+        padding: 12px 0 18px;
+    }
+
+    body.page-login .footer {
+        font-size: 11px;
+        margin-top: 12px;
+    }
+}
