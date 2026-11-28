@@ -11,7 +11,7 @@ if (!auditoriaAdmin($_SESSION)) {
 }
 $metodo=$_SERVER['REQUEST_METHOD']??'';
 if (!in_array($metodo,['GET','POST'],true)) {header('Allow: GET, POST');http_response_code(405);exit;}
-require_once dirname(__DIR__).'/config/Conexion.php';
+require dirname(__DIR__).'/config/Conexion.php';
 if (empty($_SESSION['csrf_token'])) $_SESSION['csrf_token']=bin2hex(random_bytes(32));
 $hoy=(new DateTimeImmutable('now',new DateTimeZone('America/Lima')))->format('Y-m-d');
 $f=filtrosListaEsperaAdmin([]);$resultado=['filas'=>[],'total'=>0,'pagina'=>1,'paginas'=>1];$error='';

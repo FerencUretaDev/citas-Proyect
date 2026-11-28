@@ -10,7 +10,7 @@ if ($usuarioId===null || auditoriaRol($_SESSION['rol']??null)!==0) {
     if ($usuarioId===null) {header('Location: index.php');exit;}
     http_response_code(403);exit('Acceso reservado al paciente.');
 }
-require_once dirname(__DIR__).'/config/Conexion.php';
+require dirname(__DIR__).'/config/Conexion.php';
 require_once dirname(__DIR__).'/middlewares/SesionActiva.php';
 require_once dirname(__DIR__).'/servicios/DisponibilidadListaEsperaService.php';
 verificarPerfilActivo($conexion);

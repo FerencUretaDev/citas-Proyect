@@ -13,7 +13,7 @@ if($usuarioId===null || auditoriaRol($_SESSION['rol'])!==0) {
     if($dbAud=auditoriaConexionOpcional()) auditar($dbAud,'citas','acceder','denegado');
     http_response_code(403); exit('Acceso reservado al paciente.');
 }
-require_once dirname(__DIR__).'/config/Conexion.php';
+require dirname(__DIR__).'/config/Conexion.php';
 require_once dirname(__DIR__).'/middlewares/SesionActiva.php';
 require_once dirname(__DIR__).'/servicios/HistorialCitasService.php';
 verificarPerfilActivo($conexion);

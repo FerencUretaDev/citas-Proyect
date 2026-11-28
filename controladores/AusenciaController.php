@@ -20,7 +20,7 @@ if (!auditoriaAdmin($_SESSION)) {
     exit("Acceso reservado al administrador.");
 }
 
-require_once dirname(__DIR__) . "/config/Conexion.php";
+require dirname(__DIR__) . "/config/Conexion.php";
 
 require_once dirname(__DIR__) .
     "/servicios/AusenciaService.php";
